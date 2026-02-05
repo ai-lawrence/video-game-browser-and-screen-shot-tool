@@ -1,5 +1,7 @@
 # Video Game Browser & Screenshot Tool (Electron Overlay AI Companion)
 
+[![Download Latest Release](https://img.shields.io/github/v/release/ai-lawrence/video-game-browser-and-screen-shot-tool?label=Download&style=for-the-badge&logo=github)](https://github.com/ai-lawrence/video-game-browser-and-screen-shot-tool/releases/latest)
+
 A specialized desktop application designed to provide a persistent, non-intrusive AI interface and utility layer for Windows 11 gamers. This overlay sits on top of your full-screen borderless games, giving you instant access to AI assistance (ChatGPT, Gemini, Perplexity) and advanced interaction tools without alt-tabbing.
 
 ## 🚀 Key Features
@@ -49,6 +51,10 @@ npm run build:win
 This will generate:
 *   **Portable .exe**: A single-file executable in `dist/`.
 *   **Unpacked Folder**: A directory in `dist/win-unpacked/` containing the executable and resources.
+
+## 📥 Downloads
+
+You can download the latest portable executable directly from the [GitHub Releases](https://github.com/ai-lawrence/video-game-browser-and-screen-shot-tool/releases) page.
 
 ## 🎮 Usage
 
