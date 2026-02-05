@@ -14,26 +14,27 @@ function App(): React.JSX.Element {
 
   const screenshotRef = useRef<string | null>(null)
 
+  // References for AI Webviews to programmatically focus/paste
   const chatgptRef = useRef<HTMLWebViewElement>(null)
   const geminiRef = useRef<HTMLWebViewElement>(null)
   const perplexityRef = useRef<HTMLWebViewElement>(null)
 
-  // New refs for optimized event handling
+  // New refs for optimized event handling (useRef avoids re-renders during high-frequency events like drag/resize)
   const isResizingRef = useRef(false)
   const isDraggingRef = useRef(false)
   const dragOffsetRef = useRef({ x: 0, y: 0 })
   const positionRef = useRef({ x: 20, y: 20 }) // Initialize with initial position
-  const requestRef = useRef<number | null>(null)
+  const requestRef = useRef<number | null>(null) // RAF ID for cancelling animations
 
   useEffect(() => {
-    // Initial setup if needed
+    // Listen for global screenshot events triggered by main process/hotkeys
     window.api.onTriggerScreenshot((data) => {
-      if (screenshotRef.current) return // busy
+      if (screenshotRef.current) return // deny if already processing a screenshot
       setScreenshot(data)
       screenshotRef.current = data
     })
     window.api.onTriggerSnip((data) => {
-      if (screenshotRef.current) return // busy
+      if (screenshotRef.current) return // deny if already processing
       setScreenshot(data)
       screenshotRef.current = data
     })
@@ -62,20 +63,24 @@ function App(): React.JSX.Element {
     dragOffsetRef.current = offset
   }
 
+  // Global Mouse Event Listeners for Dragging and Resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent): void => {
       if (!isResizingRef.current && !isDraggingRef.current) return
 
-      // If a frame is already scheduled, skip this one
+      // Throttling with requestAnimationFrame for smooth 60fps performance
       if (requestRef.current) return
 
       requestRef.current = requestAnimationFrame(() => {
         requestRef.current = null // Clear the request ID once the frame starts
         if (isResizingRef.current) {
+          // Resize: Update dimensions based on mouse delta
+          // Enforce minimum width of 300px
           const newWidth = Math.max(300, e.clientX - positionRef.current.x - 60) // 60 is sidebar width
-          const newHeight = newWidth * 1.5
+          const newHeight = newWidth * 1.5 // Enforce 2:3 Aspect Ratio
           setDimensions({ width: newWidth, height: newHeight })
         } else if (isDraggingRef.current) {
+          // Drag: Update position based on offset
           setPosition({
             x: e.clientX - dragOffsetRef.current.x,
             y: e.clientY - dragOffsetRef.current.y
@@ -84,10 +89,12 @@ function App(): React.JSX.Element {
       })
     }
 
+    // Logic to determine if mouse is hovering over the UI to enable/disable click-through (ignoreMouseEvents)
     const handleMouseMoveGlobal = (e: MouseEvent): void => {
       const appContainer = document.querySelector('.app-container')
       if (appContainer) {
         const rect = appContainer.getBoundingClientRect()
+        // Check if mouse is strictly inside the visible application bounds
         const isInside =
           e.clientX >= rect.left &&
           e.clientX <= rect.right &&
@@ -95,7 +102,8 @@ function App(): React.JSX.Element {
           e.clientY <= rect.bottom
 
         if (!isInside) {
-          // Check ref instead of state to avoid stale closure
+          // If outside, allow clicks to pass through to the game/desktop
+          // Check ref instead of state to avoid stale closure issues in event listener
           if (!screenshotRef.current) {
             window.api.setIgnoreMouseEvents(true, { forward: true })
           }
@@ -114,7 +122,7 @@ function App(): React.JSX.Element {
         requestRef.current = null
       }
 
-      // If mouse is no longer over the container after release, re-enable passthrough
+      // Re-evaluate mouse position relative to UI to ensure correct pass-through state
       handleMouseMoveGlobal(e)
     }
 
@@ -131,6 +139,13 @@ function App(): React.JSX.Element {
     }
   }, []) // Empty dependency array ensures listeners are only registered once
 
+  /**
+   * Handles the workflow when a user approves a snip/screenshot to be sent to AI.
+   * 1. Copies image to clipboard.
+   * 2. Focuses the active AI webview.
+   * 3. Injects JS to focus the specific input field of that AI service.
+   * 4. Pastes the image.
+   */
   const handleSendToAI = async (imageToPaste: string): Promise<void> => {
     try {
       // 1. Write to clipboard and wait for it to finish
@@ -148,6 +163,7 @@ function App(): React.JSX.Element {
       activeRef.current.focus()
 
       // 3. Try to focus the specific chat input field via JS and then paste
+      // Note: These selectors are subject to change if the AI providers update their DOM
       const focusScript =
         activeAI === 'chatgpt'
           ? `
@@ -178,7 +194,7 @@ function App(): React.JSX.Element {
       // 4. Small delay to ensure focus settled before pasting
       setTimeout(() => {
         if (activeRef.current) {
-          (activeRef.current as any).paste()
+          ;(activeRef.current as any).paste()
           // 5. Close the snipping tool after paste is triggered
           setScreenshot(null)
           screenshotRef.current = null
@@ -207,7 +223,7 @@ function App(): React.JSX.Element {
           left: position.x,
           top: position.y,
           width: dimensions.width + 60, // + sidebar width
-          height: dimensions.height,
+          height: dimensions.height
         }}
         onMouseEnter={() => window.api.setIgnoreMouseEvents(false)}
         onMouseLeave={() => {
@@ -230,11 +246,7 @@ function App(): React.JSX.Element {
           {/* Mouse Guard: Prevents webview from stealing events during drag/resize */}
           {(isResizing || isDragging) && <div className="mouse-guard"></div>}
           {/* Move Handle (Anchor Point) */}
-          <div
-            className="move-handle"
-            onMouseDown={handleDragStart}
-            title="Drag to move"
-          >
+          <div className="move-handle" onMouseDown={handleDragStart} title="Drag to move">
             <div className="move-dots"></div>
             <button
               className="exit-button"
@@ -245,7 +257,9 @@ function App(): React.JSX.Element {
             </button>
           </div>
 
-          <div style={{ display: activeAI === 'chatgpt' ? 'block' : 'none', height: '100%', flex: 1 }}>
+          <div
+            style={{ display: activeAI === 'chatgpt' ? 'block' : 'none', height: '100%', flex: 1 }}
+          >
             <webview
               ref={chatgptRef}
               src="https://chatgpt.com"
@@ -253,7 +267,9 @@ function App(): React.JSX.Element {
               style={{ width: '100%', height: '100%' }}
             ></webview>
           </div>
-          <div style={{ display: activeAI === 'gemini' ? 'block' : 'none', height: '100%', flex: 1 }}>
+          <div
+            style={{ display: activeAI === 'gemini' ? 'block' : 'none', height: '100%', flex: 1 }}
+          >
             <webview
               ref={geminiRef}
               src="https://gemini.google.com"
@@ -261,7 +277,13 @@ function App(): React.JSX.Element {
               style={{ width: '100%', height: '100%' }}
             ></webview>
           </div>
-          <div style={{ display: activeAI === 'perplexity' ? 'block' : 'none', height: '100%', flex: 1 }}>
+          <div
+            style={{
+              display: activeAI === 'perplexity' ? 'block' : 'none',
+              height: '100%',
+              flex: 1
+            }}
+          >
             <webview
               ref={perplexityRef}
               src="https://www.perplexity.ai"
@@ -271,15 +293,10 @@ function App(): React.JSX.Element {
           </div>
 
           {/* Resize Handle */}
-          <div
-            className="resize-handle"
-            onMouseDown={handleResizeStart}
-          ></div>
+          <div className="resize-handle" onMouseDown={handleResizeStart}></div>
 
           {isSettingsOpen && (
-            <div
-              onMouseEnter={() => window.api.setIgnoreMouseEvents(false)}
-            >
+            <div onMouseEnter={() => window.api.setIgnoreMouseEvents(false)}>
               <Settings onClose={() => setIsSettingsOpen(false)} />
             </div>
           )}

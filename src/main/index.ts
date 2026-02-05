@@ -14,27 +14,33 @@ import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync, lstatSyn
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
-// Set up portable data directory
+// Set up portable data directory to ensure data is saved locally alongside the executable
+// This is critical for the "portable" aspect of the application.
 const setupPortablePaths = (): void => {
   let baseDir: string
+  // If running in development mode, use the app's root path
   if (is.dev) {
     baseDir = app.getAppPath()
   } else if (process.env.PORTABLE_EXECUTABLE_DIR) {
-    // This is set by electron-builder's portable launcher on Windows
+    // This environment variable is set by electron-builder's portable launcher on Windows
+    // It points to the directory where the portable .exe is located
     baseDir = process.env.PORTABLE_EXECUTABLE_DIR
   } else {
-    // Fallback for unpacked builds (win-unpacked folder)
+    // Fallback for unpacked builds (win-unpacked folder), use the executable's directory
     baseDir = dirname(app.getPath('exe'))
   }
 
+  // dataPath is where all user data (screenshots, settings, cache) will be stored
   const dataPath = join(baseDir, 'data')
   const screenshotsPath = join(dataPath, 'screenshots')
   const snipsPath = join(screenshotsPath, 'snips')
 
+  // Create directories if they don't exist
   if (!existsSync(dataPath)) mkdirSync(dataPath, { recursive: true })
   if (!existsSync(screenshotsPath)) mkdirSync(screenshotsPath, { recursive: true })
   if (!existsSync(snipsPath)) mkdirSync(snipsPath, { recursive: true })
 
+  // Redirect Electron's default 'userData' path to our portable 'data' folder
   app.setPath('userData', dataPath)
   console.log(`Portable mode: Data redirected to ${dataPath}`)
 }
@@ -42,11 +48,19 @@ const setupPortablePaths = (): void => {
 setupPortablePaths()
 
 let store: any
+// Initialize electron-store simply to manage user preferences (hotkeys)
 const initStore = async (): Promise<void> => {
   const { default: Store } = await import('electron-store')
   store = new Store()
 }
 
+/**
+ * Creates the main application window.
+ * This window is configured to be:
+ * - Transparent & Frameless: To serve as an overlay.
+ * - Always On Top: To stay above full-screen games.
+ * - Click-through (initially): Via setIgnoreMouseEvents.
+ */
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -57,29 +71,31 @@ function createWindow(): void {
     transparent: true,
     frame: false,
     alwaysOnTop: true,
-    skipTaskbar: true,
+    skipTaskbar: true, // Don't show in taskbar to be less intrusive
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      webviewTag: true
+      webviewTag: true // Required for embedding external AI sites (ChatGPT, etc.)
     }
   })
 
   // Set initial ignore mouse events to allow passthrough by default
-  // while still forwarding events to the renderer for hover detection
-  mainWindow.setAlwaysOnTop(true, 'screen-saver')
+  // 'forward: true' ensures the renderer still receives mouseover events to trigger interactivity
+  mainWindow.setAlwaysOnTop(true, 'screen-saver') // High priority always-on-top
   mainWindow.setIgnoreMouseEvents(true, { forward: true })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-    // Make it full screen for overlay if needed, or just specific size
+    // Set window bounds to match the primary display's work area for full coverage if needed
     const primaryDisplay = screen.getPrimaryDisplay()
     const { width, height } = primaryDisplay.workAreaSize
     mainWindow.setBounds({ x: 0, y: 0, width, height })
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  // Handle new window creation request from webviews (e.g., clicking links in chat)
+  // We deny the new window and instead open the URL in the system's default browser
+  mainWindow.webContents.setWindowOpenHandler((details): { action: 'deny' } => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
@@ -91,33 +107,37 @@ function createWindow(): void {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
-  // Hotkey registration logic
+  // Logic to register global shortcuts based on user settings
   const registerShortcuts = (): void => {
+    // Retrieve hotkeys from store or use defaults
     const screenshotHotkey = store.get('screenshotHotkey', 'Alt+S') as string
     const snipHotkey = store.get('snipHotkey', 'Alt+Shift+S') as string
     const toggleHotkey = store.get('toggleHotkey', 'Alt+V') as string
 
+    // Unregister existing shortcuts to avoid conflicts/duplicates
     globalShortcut.unregisterAll()
 
+    // Helper function to handle screen capture logic
     const captureScreen = async (type: 'screenshot' | 'snip'): Promise<void> => {
-      // Hide window for clean capture
+      // 1. Hide the overlay window to ensure a "clean" capture of the underlying game/screen
       const wasVisible = mainWindow.isVisible()
       if (wasVisible) {
         mainWindow.hide()
-        // Wait for OS to redraw
+        // Wait briefly for the OS to repaint the screen without the overlay
         await new Promise((resolve) => setTimeout(resolve, 300))
       }
 
+      // 2. Capture the screen content using desktopCapturer
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
         thumbnailSize: screen.getPrimaryDisplay().workAreaSize
       })
-      const primarySource = sources[0] // Assuming primary screen for now
+      const primarySource = sources[0] // Assuming primary display
 
       if (primarySource) {
         const dataUrl = primarySource.thumbnail.toDataURL()
 
-        // Auto-save to gallery (Screenshots ONLY)
+        // 3a. For full Screenshots: Auto-save immediately to the gallery
         if (type === 'screenshot') {
           const screenshotsPath = join(app.getPath('userData'), 'screenshots')
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
@@ -126,29 +146,35 @@ function createWindow(): void {
           writeFileSync(filePath, imageBuffer)
         }
 
-        // Restore window before sending event
+        // 4. Restore the overlay visibility
         if (wasVisible) {
-          mainWindow.showInactive()
+          mainWindow.showInactive() // Show without stealing focus
           mainWindow.setAlwaysOnTop(true, 'screen-saver')
         }
 
+        // 5. Send the image data to the renderer to be displayed/processed (e.g. sent to AI)
         mainWindow.webContents.send(`trigger-${type}`, dataUrl)
       } else if (wasVisible) {
-        // Restore if failed
+        // Validation/Error fallback: restore window if capture failed
         mainWindow.showInactive()
         mainWindow.setAlwaysOnTop(true, 'screen-saver')
       }
     }
 
     try {
+      // Register the actual hotkeys using the electron globalShortcut API
       if (screenshotHotkey) {
-        globalShortcut.register(screenshotHotkey, () => captureScreen('screenshot'))
+        globalShortcut.register(screenshotHotkey, (): void => {
+          captureScreen('screenshot')
+        })
       }
       if (snipHotkey) {
-        globalShortcut.register(snipHotkey, () => captureScreen('snip'))
+        globalShortcut.register(snipHotkey, (): void => {
+          captureScreen('snip')
+        })
       }
       if (toggleHotkey) {
-        globalShortcut.register(toggleHotkey, () => {
+        globalShortcut.register(toggleHotkey, (): void => {
           if (mainWindow.isVisible()) {
             mainWindow.hide()
           } else {
@@ -164,10 +190,14 @@ function createWindow(): void {
 
   registerShortcuts()
 
-  ipcMain.on('update-hotkeys', () => {
+  /* IPC HANDLERS used by the Renderer process */
+
+  // Re-register hotkeys when settings change in the React app
+  ipcMain.on('update-hotkeys', (): void => {
     registerShortcuts()
   })
 
+  // Get current settings (hotkeys) from store
   ipcMain.handle('get-settings', () => {
     return {
       screenshotHotkey: store.get('screenshotHotkey', 'Alt+S'),
@@ -176,37 +206,43 @@ function createWindow(): void {
     }
   })
 
-  ipcMain.on('save-settings', (_, settings) => {
+  // Save updated settings to store
+  ipcMain.on('save-settings', (_, settings): void => {
     store.set(settings)
     registerShortcuts()
   })
 
-  ipcMain.on('set-ignore-mouse-events', (_, ignore, options) => {
+  // Control mouse event passthrough (called when hovering over UI vs empty space)
+  ipcMain.on('set-ignore-mouse-events', (_, ignore, options): void => {
     mainWindow.setIgnoreMouseEvents(ignore, options)
   })
 
+  // Write image data to system clipboard
   ipcMain.handle('write-to-clipboard', (_, dataUrl) => {
     const img = nativeImage.createFromDataURL(dataUrl)
     clipboard.writeImage(img)
     return true
   })
 
-  ipcMain.on('quit-app', () => {
+  // Quit the application
+  ipcMain.on('quit-app', (): void => {
     app.quit()
   })
 
-  ipcMain.on('open-screenshot-folder', () => {
+  // Open the screenshots folder in system file explorer
+  ipcMain.on('open-screenshot-folder', (): void => {
     const screenshotsPath = join(app.getPath('userData'), 'screenshots')
     shell.openPath(screenshotsPath)
   })
 
-  ipcMain.on('clear-screenshots', () => {
+  // Delete all full screenshots
+  ipcMain.on('clear-screenshots', (): void => {
     const screenshotsPath = join(app.getPath('userData'), 'screenshots')
     if (existsSync(screenshotsPath)) {
       const files = readdirSync(screenshotsPath)
       for (const file of files) {
         const fullPath = join(screenshotsPath, file)
-        // Don't delete the snips directory itself, only files in root
+        // Don't delete the snips directory (which is a subdirectory here), only files
         if (!lstatSync(fullPath).isDirectory()) {
           unlinkSync(fullPath)
         }
@@ -214,7 +250,8 @@ function createWindow(): void {
     }
   })
 
-  ipcMain.on('clear-snips', () => {
+  // Delete all snips
+  ipcMain.on('clear-snips', (): void => {
     const snipsPath = join(app.getPath('userData'), 'screenshots', 'snips')
     if (existsSync(snipsPath)) {
       const files = readdirSync(snipsPath)
@@ -224,12 +261,13 @@ function createWindow(): void {
     }
   })
 
-  ipcMain.on('save-snip', (_event, dataUrl: string) => {
+  // Save a cropped snip to the snips folder
+  ipcMain.on('save-snip', (_event, dataUrl: string): void => {
     const snipsPath = join(app.getPath('userData'), 'screenshots', 'snips')
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const filePath = join(snipsPath, `snip-${timestamp}.png`)
 
-    // Convert data URL to buffer
+    // Convert data URL to buffer for file writing
     const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '')
     const imageBuffer = Buffer.from(base64Data, 'base64')
 
@@ -245,16 +283,16 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.on('ping', (): void => console.log('pong'))
 
   createWindow()
 
-  app.on('activate', function () {
+  app.on('activate', function (): void {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', (): void => {
   if (process.platform !== 'darwin') {
     app.quit()
   }

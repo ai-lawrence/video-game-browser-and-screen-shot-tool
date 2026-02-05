@@ -2,18 +2,37 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
+// Custom APIs for renderer
+// These functions act as a bridge between the renderer (React) and the main process (Electron)
 const api = {
+  // Notify main process to re-read hotkey settings
   updateHotkeys: () => ipcRenderer.send('update-hotkeys'),
+
+  // Tell main process to ignore mouse events (allow click-through)
   setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) =>
     ipcRenderer.send('set-ignore-mouse-events', ignore, options),
+
+  // Listen for the "take screenshot" command from the main process
   onTriggerScreenshot: (callback: (imageData: string) => void) =>
     ipcRenderer.on('trigger-screenshot', (_, data) => callback(data)),
+
+  // Listen for "take snip" command (rectangular selection)
   onTriggerSnip: (callback: (imageData: string) => void) =>
     ipcRenderer.on('trigger-snip', (_, data) => callback(data)),
+
+  // Listen for "toggle visibility" command
   onTriggerToggleVisibility: (callback: () => void) =>
     ipcRenderer.on('trigger-toggle-visibility', () => callback()),
+
+  // Settings management
   getSettings: () => ipcRenderer.invoke('get-settings'),
-  saveSettings: (settings: any) => ipcRenderer.send('save-settings', settings),
+  saveSettings: (settings: {
+    screenshotHotkey?: string
+    snipHotkey?: string
+    toggleHotkey?: string
+  }) => ipcRenderer.send('save-settings', settings),
+
+  // Utility
   writeToClipboard: (dataUrl: string) => ipcRenderer.invoke('write-to-clipboard', dataUrl),
   openScreenshotFolder: () => ipcRenderer.send('open-screenshot-folder'),
   clearScreenshots: () => ipcRenderer.send('clear-screenshots'),
