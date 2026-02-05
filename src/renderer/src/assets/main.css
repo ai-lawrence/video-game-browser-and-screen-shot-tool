@@ -1,0 +1,380 @@
+:root {
+  --sidebar-width: 60px;
+  --panel-bg: rgba(20, 20, 20, 0.85);
+  --accent-color: #3b82f6;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --error-color: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: transparent !important;
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+#root {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+.app-container {
+  display: flex;
+}
+
+/* Main Content Styling */
+.main-content {
+  flex: 0 0 auto;
+  position: relative;
+  background: var(--panel-bg);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0 8px 8px 0;
+}
+
+.app-container.interacting .main-content {
+  backdrop-filter: none;
+  transition: none;
+}
+
+.move-handle {
+  height: 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-color);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.move-handle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.move-handle:active {
+  cursor: grabbing;
+}
+
+.move-dots {
+  width: 30px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.exit-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.2s;
+  border-radius: 0 8px 0 0;
+  z-index: 101;
+}
+
+.exit-button:hover {
+  background: var(--error-color);
+  color: white;
+}
+
+.main-content.resizable {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  z-index: 100;
+  background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.2) 50%);
+  border-radius: 0 0 0 4px;
+}
+
+.mouse-guard {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99;
+  background: transparent;
+  cursor: inherit;
+}
+
+.resize-handle:hover {
+  background: linear-gradient(135deg, transparent 50%, var(--accent-color) 50%);
+}
+
+webview {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
+  /* AI sites usually need white background */
+}
+
+/* Sidebar Styling */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--panel-bg);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 0;
+  z-index: 100;
+  -webkit-app-region: drag;
+}
+
+.sidebar-top,
+.sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.sidebar-item {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  background: transparent;
+  border: none;
+  -webkit-app-region: no-drag;
+}
+
+.sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.sidebar-item.active {
+  background: var(--accent-color);
+  color: white;
+}
+
+.sidebar-separator {
+  width: 30px;
+  height: 1px;
+  background: var(--border-color);
+  margin: 10px 0;
+}
+
+.delete-item:hover {
+  background: var(--error-color) !important;
+  color: white !important;
+}
+
+/* Settings Styling */
+.settings-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(5px);
+}
+
+.settings-panel {
+  background: #18181b;
+  width: 450px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.settings-content {
+  padding: 24px;
+}
+
+.settings-content section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-content h3 {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+/* Hotkey Recorder Styling */
+.hotkey-recorder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hotkey-recorder label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.hotkey-input {
+  height: 40px;
+  background: #27272a;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hotkey-input:hover {
+  border-color: var(--accent-color);
+}
+
+.hotkey-input.recording {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  background: #1e1e1e;
+}
+
+.cancel-btn {
+  font-size: 0.75rem;
+  color: var(--error-color);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  align-self: flex-start;
+  margin-top: -4px;
+}
+
+.error-message {
+  color: var(--error-color);
+  font-size: 0.875rem;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Snipping Tool Styling */
+.snipping-tool {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  background: black;
+  cursor: crosshair;
+}
+
+.snipping-tool canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.snipping-toolbar {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.toolbar-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.toolbar-btn.send {
+  background: var(--accent-color);
+}
+
+.toolbar-btn.send:hover {
+  background: #2563eb;
+}
+
+.toolbar-btn.cancel {
+  color: var(--error-color);
+}
