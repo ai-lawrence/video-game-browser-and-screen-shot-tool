@@ -273,6 +273,56 @@ function createWindow(): void {
 
     writeFileSync(filePath, imageBuffer)
   })
+
+  interface SavedPrompt {
+    id: string
+    title: string
+    icon?: string
+    text: string
+    createdAt: number
+    updatedAt: number
+  }
+
+  /* SAVED PROMPTS IPC HANDLERS */
+
+  // Get all saved prompts
+  ipcMain.handle('get-saved-prompts', () => {
+    return store.get('savedPrompts', []) as SavedPrompt[]
+  })
+
+  // Add or update a saved prompt
+  ipcMain.handle('save-saved-prompt', (_, prompt: SavedPrompt) => {
+    const prompts = store.get('savedPrompts', []) as SavedPrompt[]
+    const index = prompts.findIndex((p) => p.id === prompt.id)
+    if (index !== -1) {
+      prompts[index] = { ...prompt, updatedAt: Date.now() }
+    } else {
+      prompts.push({ ...prompt, createdAt: Date.now(), updatedAt: Date.now() })
+    }
+    // Sort by updatedAt desc
+    prompts.sort((a, b) => b.updatedAt - a.updatedAt)
+    store.set('savedPrompts', prompts)
+    return true
+  })
+
+  // Delete a saved prompt
+  ipcMain.handle('delete-saved-prompt', (_, id: string) => {
+    const prompts = store.get('savedPrompts', []) as SavedPrompt[]
+    const newPrompts = prompts.filter((p) => p.id !== id)
+    store.set('savedPrompts', newPrompts)
+    return true
+  })
+
+  // Get auto-send setting
+  ipcMain.handle('get-autosend-settings', () => {
+    return store.get('savedPromptsAutoSend', false)
+  })
+
+  // Set auto-send setting
+  ipcMain.handle('set-autosend-settings', (_, autoSend) => {
+    store.set('savedPromptsAutoSend', autoSend)
+    return true
+  })
 }
 
 app.whenReady().then(async () => {

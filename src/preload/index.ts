@@ -38,7 +38,14 @@ const api = {
   clearScreenshots: () => ipcRenderer.send('clear-screenshots'),
   clearSnips: () => ipcRenderer.send('clear-snips'),
   saveSnip: (dataUrl: string) => ipcRenderer.send('save-snip', dataUrl),
-  quitApp: () => ipcRenderer.send('quit-app')
+  quitApp: () => ipcRenderer.send('quit-app'),
+
+  // Saved Prompts API
+  getSavedPrompts: () => ipcRenderer.invoke('get-saved-prompts'),
+  saveSavedPrompt: (prompt: unknown) => ipcRenderer.invoke('save-saved-prompt', prompt),
+  deleteSavedPrompt: (id: string) => ipcRenderer.invoke('delete-saved-prompt', id),
+  getAutoSendSettings: () => ipcRenderer.invoke('get-autosend-settings'),
+  setAutoSendSettings: (autoSend: boolean) => ipcRenderer.invoke('set-autosend-settings', autoSend)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

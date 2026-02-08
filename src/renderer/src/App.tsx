@@ -2,8 +2,15 @@ import React, { useState, useEffect, useRef } from 'react'
 import Sidebar from './components/Sidebar'
 import Settings from './components/Settings'
 import SnippingTool from './components/SnippingTool'
+import SavedPromptsPanel from './components/SavedPrompts/SavedPromptsPanel'
+import Toast from './components/Toast'
+import { getProviderForUrl } from './providers'
+import { SavedPrompt } from './providers/types'
+
+// ... existing code ...
 
 function App(): React.JSX.Element {
+  // ... existing state ...
   const [activeAI, setActiveAI] = useState<'chatgpt' | 'gemini' | 'perplexity'>('chatgpt')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [screenshot, setScreenshot] = useState<string | null>(null)
@@ -12,6 +19,10 @@ function App(): React.JSX.Element {
   const [isResizing, setIsResizing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
+  // Toast state
+  const [toastMsg, setToastMsg] = useState('')
+  const [showToast, setShowToast] = useState(false)
+
   const screenshotRef = useRef<string | null>(null)
 
   // References for AI Webviews to programmatically focus/paste
@@ -19,6 +30,7 @@ function App(): React.JSX.Element {
   const geminiRef = useRef<HTMLWebViewElement>(null)
   const perplexityRef = useRef<HTMLWebViewElement>(null)
 
+  // ... existing refs and effects ...
   // New refs for optimized event handling (useRef avoids re-renders during high-frequency events like drag/resize)
   const isResizingRef = useRef(false)
   const isDraggingRef = useRef(false)
@@ -68,19 +80,15 @@ function App(): React.JSX.Element {
     const handleMouseMove = (e: MouseEvent): void => {
       if (!isResizingRef.current && !isDraggingRef.current) return
 
-      // Throttling with requestAnimationFrame for smooth 60fps performance
       if (requestRef.current) return
 
       requestRef.current = requestAnimationFrame(() => {
-        requestRef.current = null // Clear the request ID once the frame starts
+        requestRef.current = null
         if (isResizingRef.current) {
-          // Resize: Update dimensions based on mouse delta
-          // Enforce minimum width of 300px
-          const newWidth = Math.max(300, e.clientX - positionRef.current.x - 60) // 60 is sidebar width
-          const newHeight = newWidth * 1.5 // Enforce 2:3 Aspect Ratio
+          const newWidth = Math.max(300, e.clientX - positionRef.current.x - 60)
+          const newHeight = newWidth * 1.5
           setDimensions({ width: newWidth, height: newHeight })
         } else if (isDraggingRef.current) {
-          // Drag: Update position based on offset
           setPosition({
             x: e.clientX - dragOffsetRef.current.x,
             y: e.clientY - dragOffsetRef.current.y
@@ -89,12 +97,10 @@ function App(): React.JSX.Element {
       })
     }
 
-    // Logic to determine if mouse is hovering over the UI to enable/disable click-through (ignoreMouseEvents)
     const handleMouseMoveGlobal = (e: MouseEvent): void => {
       const appContainer = document.querySelector('.app-container')
       if (appContainer) {
         const rect = appContainer.getBoundingClientRect()
-        // Check if mouse is strictly inside the visible application bounds
         const isInside =
           e.clientX >= rect.left &&
           e.clientX <= rect.right &&
@@ -102,8 +108,6 @@ function App(): React.JSX.Element {
           e.clientY <= rect.bottom
 
         if (!isInside) {
-          // If outside, allow clicks to pass through to the game/desktop
-          // Check ref instead of state to avoid stale closure issues in event listener
           if (!screenshotRef.current) {
             window.api.setIgnoreMouseEvents(true, { forward: true })
           }
@@ -116,13 +120,10 @@ function App(): React.JSX.Element {
       setIsDragging(false)
       isResizingRef.current = false
       isDraggingRef.current = false
-      // Cancel any pending animation frame when mouse is released
       if (requestRef.current) {
         cancelAnimationFrame(requestRef.current)
         requestRef.current = null
       }
-
-      // Re-evaluate mouse position relative to UI to ensure correct pass-through state
       handleMouseMoveGlobal(e)
     }
 
@@ -132,23 +133,15 @@ function App(): React.JSX.Element {
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
-      // Clean up any pending animation frame on unmount
       if (requestRef.current) {
         cancelAnimationFrame(requestRef.current)
       }
     }
-  }, []) // Empty dependency array ensures listeners are only registered once
+  }, [])
 
-  /**
-   * Handles the workflow when a user approves a snip/screenshot to be sent to AI.
-   * 1. Copies image to clipboard.
-   * 2. Focuses the active AI webview.
-   * 3. Injects JS to focus the specific input field of that AI service.
-   * 4. Pastes the image.
-   */
+  // ... handleSendToAI ...
   const handleSendToAI = async (imageToPaste: string): Promise<void> => {
     try {
-      // 1. Write to clipboard and wait for it to finish
       await window.api.writeToClipboard(imageToPaste)
 
       const activeRef =
@@ -159,43 +152,26 @@ function App(): React.JSX.Element {
         return
       }
 
-      // 2. Focus the webview
       activeRef.current.focus()
 
-      // 3. Try to focus the specific chat input field via JS and then paste
-      // Note: These selectors are subject to change if the AI providers update their DOM
       const focusScript =
         activeAI === 'chatgpt'
-          ? `
-        (function() {
-          const el = document.querySelector('#prompt-textarea') || document.querySelector('[contenteditable="true"]');
-          if (el) { el.focus(); return true; }
-          return false;
-        })()
-      `
+          ? `(function(){ try { const el = document.querySelector('#prompt-textarea') || document.querySelector('[contenteditable="true"]'); if(el){el.focus();return true;} return false; } catch(e){return false;} })()`
           : activeAI === 'gemini'
-            ? `
-        (function() {
-          const el = document.querySelector('div[contenteditable="true"]') || document.querySelector('textarea');
-          if (el) { el.focus(); return true; }
-          return false;
-        })()
-      `
-            : `
-        (function() {
-          const el = document.querySelector('textarea');
-          if (el) { el.focus(); return true; }
-          return false;
-        })()
-      `
+            ? `(function(){ try { const el = document.querySelector('div[contenteditable="true"]') || document.querySelector('textarea'); if(el){el.focus();return true;} return false; } catch(e){return false;} })()`
+            : `(function(){ try { const el = document.querySelector('textarea'); if(el){el.focus();return true;} return false; } catch(e){return false;} })()`
 
       await (activeRef.current as any).executeJavaScript(focusScript)
 
-      // 4. Small delay to ensure focus settled before pasting
       setTimeout(() => {
-        if (activeRef.current) {
-          ;(activeRef.current as any).paste()
-          // 5. Close the snipping tool after paste is triggered
+        try {
+          if (activeRef.current) {
+            ;(activeRef.current as any).paste()
+            setScreenshot(null)
+            screenshotRef.current = null
+          }
+        } catch (error) {
+          console.error('Failed to paste:', error)
           setScreenshot(null)
           screenshotRef.current = null
         }
@@ -210,8 +186,42 @@ function App(): React.JSX.Element {
   const handleCancelScreenshot = (): void => {
     setScreenshot(null)
     screenshotRef.current = null
-    // Immediately check if we should reset passthrough
     window.api.setIgnoreMouseEvents(true, { forward: true })
+  }
+
+  // Inject Prompt Logic
+  const handleInjectPrompt = async (prompt: SavedPrompt, autoSend: boolean) => {
+    const activeRef =
+      activeAI === 'chatgpt' ? chatgptRef : activeAI === 'gemini' ? geminiRef : perplexityRef
+    if (!activeRef.current) return
+
+    let url = ''
+    if (activeAI === 'chatgpt') url = 'https://chatgpt.com'
+    else if (activeAI === 'gemini') url = 'https://gemini.google.com'
+
+    // Perplexity not yet supported with adapter, fallback
+    const provider = getProviderForUrl(url)
+
+    // Helper to fallback
+    const fallback = async (msg: string) => {
+      await window.api.writeToClipboard(prompt.text)
+      setToastMsg(`From ${prompt.title}: ${msg}. Copied to clipboard.`)
+      setShowToast(true)
+    }
+
+    if (!provider) {
+      await fallback('Provider not supported')
+      return
+    }
+
+    try {
+      const result = await provider.inject(activeRef.current as any, prompt.text, autoSend)
+      if (!result.ok) {
+        await fallback(result.error || 'Injection failed')
+      }
+    } catch (err) {
+      await fallback('Error during injection')
+    }
   }
 
   return (
@@ -227,7 +237,6 @@ function App(): React.JSX.Element {
         }}
         onMouseEnter={() => window.api.setIgnoreMouseEvents(false)}
         onMouseLeave={() => {
-          // Check ref instead of state to avoid stale closure
           if (!isResizingRef.current && !isDraggingRef.current && !screenshotRef.current) {
             window.api.setIgnoreMouseEvents(true, { forward: true })
           }
@@ -243,9 +252,7 @@ function App(): React.JSX.Element {
           className="main-content resizable"
           style={{ width: dimensions.width, height: dimensions.height }}
         >
-          {/* Mouse Guard: Prevents webview from stealing events during drag/resize */}
           {(isResizing || isDragging) && <div className="mouse-guard"></div>}
-          {/* Move Handle (Anchor Point) */}
           <div className="move-handle" onMouseDown={handleDragStart} title="Drag to move">
             <div className="move-dots"></div>
             <button
@@ -257,42 +264,69 @@ function App(): React.JSX.Element {
             </button>
           </div>
 
-          <div
-            style={{ display: activeAI === 'chatgpt' ? 'block' : 'none', height: '100%', flex: 1 }}
-          >
-            <webview
-              ref={chatgptRef}
-              src="https://chatgpt.com"
-              partition="persist:chatgpt"
-              style={{ width: '100%', height: '100%' }}
-            ></webview>
-          </div>
-          <div
-            style={{ display: activeAI === 'gemini' ? 'block' : 'none', height: '100%', flex: 1 }}
-          >
-            <webview
-              ref={geminiRef}
-              src="https://gemini.google.com"
-              partition="persist:gemini"
-              style={{ width: '100%', height: '100%' }}
-            ></webview>
-          </div>
-          <div
-            style={{
-              display: activeAI === 'perplexity' ? 'block' : 'none',
-              height: '100%',
-              flex: 1
-            }}
-          >
-            <webview
-              ref={perplexityRef}
-              src="https://www.perplexity.ai"
-              partition="persist:perplexity"
-              style={{ width: '100%', height: '100%' }}
-            ></webview>
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            <div
+              style={{
+                display: activeAI === 'chatgpt' ? 'block' : 'none',
+                height: '100%',
+                width: '100%'
+              }}
+            >
+              {/* @ts-ignore: partition is valid for webview but missing in React types */}
+              <webview
+                ref={chatgptRef}
+                src="https://chatgpt.com"
+                partition="persist:chatgpt"
+                style={{ width: '100%', height: '100%' }}
+              ></webview>
+            </div>
+            <div
+              style={{
+                display: activeAI === 'gemini' ? 'block' : 'none',
+                height: '100%',
+                width: '100%'
+              }}
+            >
+              {/* @ts-ignore: partition is valid for webview but missing in React types */}
+              <webview
+                ref={geminiRef}
+                src="https://gemini.google.com"
+                partition="persist:gemini"
+                style={{ width: '100%', height: '100%' }}
+              ></webview>
+            </div>
+            <div
+              style={{
+                display: activeAI === 'perplexity' ? 'block' : 'none',
+                height: '100%',
+                width: '100%'
+              }}
+            >
+              {/* @ts-ignore: partition is valid for webview but missing in React types */}
+              <webview
+                ref={perplexityRef}
+                src="https://www.perplexity.ai"
+                partition="persist:perplexity"
+                style={{ width: '100%', height: '100%' }}
+              ></webview>
+            </div>
           </div>
 
-          {/* Resize Handle */}
+          {/* Saved Prompts Panel */}
+          {activeAI !== 'perplexity' && <SavedPromptsPanel onInject={handleInjectPrompt} />}
+          {activeAI === 'perplexity' && (
+            <div
+              style={{
+                padding: 10,
+                fontSize: '0.8rem',
+                color: '#666',
+                borderTop: '1px solid #333'
+              }}
+            >
+              Saved prompts are currently supported for ChatGPT and Gemini.
+            </div>
+          )}
+
           <div className="resize-handle" onMouseDown={handleResizeStart}></div>
 
           {isSettingsOpen && (
@@ -310,6 +344,8 @@ function App(): React.JSX.Element {
           onSend={handleSendToAI}
         />
       )}
+
+      <Toast message={toastMsg} isVisible={showToast} onClose={() => setShowToast(false)} />
     </>
   )
 }

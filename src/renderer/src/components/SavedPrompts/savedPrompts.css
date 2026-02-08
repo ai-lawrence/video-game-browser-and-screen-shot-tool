@@ -1,0 +1,276 @@
+.saved-prompts-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background-soft);
+  /* Assuming base vars exist, fallbacks below */
+  background-color: #2a2a2a;
+  border-bottom: 1px solid #444;
+  padding: 8px;
+  max-height: 150px;
+  /* Limit height to save screen space */
+  overflow: hidden;
+  color: #eee;
+}
+
+.saved-prompts-panel.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.panel-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #aaa;
+}
+
+.panel-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  background: #444;
+  color: #fff;
+}
+
+.toggle-autosend.active {
+  color: #4ade80;
+  /* Green */
+}
+
+.prompts-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 110px;
+}
+
+.empty-state {
+  font-size: 0.8rem;
+  color: #666;
+  text-align: center;
+  width: 100%;
+  padding: 10px;
+}
+
+/* Prompt Chip */
+.prompt-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #333;
+  border-radius: 12px;
+  padding-right: 4px;
+  border: 1px solid #444;
+  transition: all 0.2s;
+  max-width: 150px;
+}
+
+.prompt-chip:hover {
+  background: #444;
+  border-color: #555;
+  transform: translateY(-1px);
+}
+
+.chip-main {
+  background: transparent;
+  border: none;
+  color: #ddd;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.chip-icon {
+  font-size: 1rem;
+}
+
+.chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.autosend-indicator {
+  color: #4ade80;
+  margin-left: 2px;
+}
+
+.chip-delete {
+  background: transparent;
+  border: none;
+  color: #666;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.prompt-chip:hover .chip-delete {
+  opacity: 1;
+}
+
+.chip-delete:hover {
+  color: #ff6b6b;
+  background: #222;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal-content {
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 8px;
+  width: 400px;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  color: #eee;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: #fff;
+}
+
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+  color: #aaa;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 8px;
+  color: #fff;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #666;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid #444;
+  color: #aaa;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-save {
+  background: #2563eb;
+  border: none;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-save:hover {
+  background: #1d4ed8;
+}
+
+.emoji-btn {
+  background: #333;
+  border: 1px solid #444;
+  font-size: 1.5rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 50px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.emoji-btn:hover {
+  background: #444;
+  border-color: #666;
+}
+
+.emoji-picker-container {
+  position: absolute;
+  z-index: 1001;
+  margin-top: 8px;
+}
