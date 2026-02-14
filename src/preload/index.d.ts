@@ -7,11 +7,37 @@ interface CustomAPI {
   onTriggerScreenshot: (callback: (imageData: string) => void) => void
   onTriggerSnip: (callback: (imageData: string) => void) => void
   onTriggerToggleVisibility: (callback: () => void) => void
-  getSettings: () => Promise<{ screenshotHotkey: string; snipHotkey: string; toggleHotkey: string }>
+  getSettings: () => Promise<{
+    screenshotHotkey: string
+    snipHotkey: string
+    toggleHotkey: string
+    clipHotkey: string
+    bufferingEnabled: boolean
+    bufferLength: number
+    systemAudioEnabled: boolean
+    micEnabled: boolean
+    selectedMicDeviceId: string
+    recordingResolution: string
+    customAspectRatio: boolean
+    aspectRatioPreset: string
+    regionBoxEnabled: boolean
+    regionBounds: { x: number; y: number; w: number; h: number } | null
+  }>
   saveSettings: (settings: {
     screenshotHotkey?: string
     snipHotkey?: string
     toggleHotkey?: string
+    clipHotkey?: string
+    bufferingEnabled?: boolean
+    bufferLength?: number
+    systemAudioEnabled?: boolean
+    micEnabled?: boolean
+    selectedMicDeviceId?: string
+    recordingResolution?: string
+    customAspectRatio?: boolean
+    aspectRatioPreset?: string
+    regionBoxEnabled?: boolean
+    regionBounds?: { x: number; y: number; w: number; h: number } | null
   }) => void
   writeToClipboard: (dataUrl: string) => Promise<void>
   openScreenshotFolder: () => void
@@ -27,6 +53,12 @@ interface CustomAPI {
   deleteSavedPrompt: (id: string) => Promise<boolean>
   getAutoSendSettings: () => Promise<boolean>
   setAutoSendSettings: (autoSend: boolean) => Promise<boolean>
+
+  // Screen Recorder API
+  getDesktopSources: () => Promise<Array<{ id: string; name: string; thumbnailDataUrl: string }>>
+  saveRecording: (buffer: Uint8Array, filename: string) => Promise<string>
+  openRecordingsFolder: () => void
+  onTriggerSaveClip: (callback: () => void) => () => void
 }
 
 export interface SavedPrompt {

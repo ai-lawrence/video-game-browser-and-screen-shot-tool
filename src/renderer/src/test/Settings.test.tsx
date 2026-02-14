@@ -10,24 +10,44 @@ const mockApi = {
 
 vi.stubGlobal('api', mockApi)
 
+// Mock navigator.mediaDevices for mic enumeration
+const mockMediaDevices = {
+  getUserMedia: vi.fn().mockResolvedValue({
+    getTracks: () => [{ stop: vi.fn() }]
+  }),
+  enumerateDevices: vi.fn().mockResolvedValue([])
+}
+Object.defineProperty(navigator, 'mediaDevices', { value: mockMediaDevices, writable: true })
+
 describe('Settings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockApi.getSettings.mockResolvedValue({
       screenshotHotkey: 'Alt+S',
-      snipHotkey: 'Alt+Shift+S'
+      snipHotkey: 'Alt+Shift+S',
+      toggleHotkey: 'Alt+V',
+      clipHotkey: 'Alt+C',
+      bufferingEnabled: false,
+      bufferLength: 30,
+      systemAudioEnabled: false,
+      micEnabled: false,
+      selectedMicDeviceId: '',
+      recordingResolution: '1080p',
+      customAspectRatio: false,
+      aspectRatioPreset: '16:9'
     })
   })
 
+
   it('loads settings on mount', async () => {
-    render(<Settings onClose={() => {}} />)
+    render(<Settings onClose={() => { }} />)
     await waitFor(() => expect(mockApi.getSettings).toHaveBeenCalled())
     expect(screen.getByText('Alt+S')).toBeInTheDocument()
     expect(screen.getByText('Alt+Shift+S')).toBeInTheDocument()
   })
 
   it('shows error on hotkey conflict', async () => {
-    render(<Settings onClose={() => {}} />)
+    render(<Settings onClose={() => { }} />)
     await waitFor(() => expect(mockApi.getSettings).toHaveBeenCalled())
 
     // Click to record new snip hotkey
@@ -45,7 +65,7 @@ describe('Settings', () => {
   })
 
   it('saves settings when hotkey is changed successfully', async () => {
-    render(<Settings onClose={() => {}} />)
+    render(<Settings onClose={() => { }} />)
     await waitFor(() => expect(mockApi.getSettings).toHaveBeenCalled())
 
     const snipHotkeyInput = screen.getByText('Alt+Shift+S')
@@ -60,7 +80,17 @@ describe('Settings', () => {
 
     expect(mockApi.saveSettings).toHaveBeenCalledWith({
       screenshotHotkey: 'Alt+S',
-      snipHotkey: 'CommandOrControl+Shift+X'
+      snipHotkey: 'CommandOrControl+Shift+X',
+      toggleHotkey: 'Alt+V',
+      clipHotkey: 'Alt+C',
+      bufferingEnabled: false,
+      bufferLength: 30,
+      systemAudioEnabled: false,
+      micEnabled: false,
+      selectedMicDeviceId: '',
+      recordingResolution: '1080p',
+      customAspectRatio: false,
+      aspectRatioPreset: '16:9'
     })
     expect(screen.queryByText(/Cannot use the same hotkey/)).not.toBeInTheDocument()
   })

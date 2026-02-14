@@ -30,6 +30,17 @@ const api = {
     screenshotHotkey?: string
     snipHotkey?: string
     toggleHotkey?: string
+    clipHotkey?: string
+    bufferingEnabled?: boolean
+    bufferLength?: number
+    systemAudioEnabled?: boolean
+    micEnabled?: boolean
+    selectedMicDeviceId?: string
+    recordingResolution?: string
+    customAspectRatio?: boolean
+    aspectRatioPreset?: string
+    regionBoxEnabled?: boolean
+    regionBounds?: { x: number; y: number; w: number; h: number } | null
   }) => ipcRenderer.send('save-settings', settings),
 
   // Utility
@@ -45,7 +56,18 @@ const api = {
   saveSavedPrompt: (prompt: unknown) => ipcRenderer.invoke('save-saved-prompt', prompt),
   deleteSavedPrompt: (id: string) => ipcRenderer.invoke('delete-saved-prompt', id),
   getAutoSendSettings: () => ipcRenderer.invoke('get-autosend-settings'),
-  setAutoSendSettings: (autoSend: boolean) => ipcRenderer.invoke('set-autosend-settings', autoSend)
+  setAutoSendSettings: (autoSend: boolean) => ipcRenderer.invoke('set-autosend-settings', autoSend),
+
+  // Screen Recorder API
+  getDesktopSources: () => ipcRenderer.invoke('get-desktop-sources'),
+  saveRecording: (buffer: Uint8Array, filename: string) =>
+    ipcRenderer.invoke('save-recording', buffer, filename),
+  openRecordingsFolder: () => ipcRenderer.send('open-recordings-folder'),
+  onTriggerSaveClip: (callback: () => void): (() => void) => {
+    const handler = (): void => callback()
+    ipcRenderer.on('trigger-save-clip', handler)
+    return () => ipcRenderer.removeListener('trigger-save-clip', handler)
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

@@ -10,7 +10,36 @@ import {
   clipboard
 } from 'electron'
 import { join, dirname } from 'path'
-import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync, lstatSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  unlinkSync,
+  writeFileSync,
+  lstatSync,
+  renameSync
+} from 'fs'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+
+const execFileAsync = promisify(execFile)
+
+/**
+ * Resolve the path to the bundled FFmpeg binary.
+ * `ffmpeg-static` exports the absolute path to a platform-specific FFmpeg executable.
+ * In production (asar), the binary is unpacked; we swap `.asar` for `.asar.unpacked`.
+ */
+let cachedFfmpegPath: string | null = null
+async function getFfmpegPath(): Promise<string> {
+  if (cachedFfmpegPath) return cachedFfmpegPath
+  const mod = await import('ffmpeg-static')
+  let ffmpegPath: string = (mod.default ?? mod) as string
+  if (ffmpegPath.includes('app.asar')) {
+    ffmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked')
+  }
+  cachedFfmpegPath = ffmpegPath
+  return ffmpegPath
+}
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
@@ -34,11 +63,13 @@ const setupPortablePaths = (): void => {
   const dataPath = join(baseDir, 'data')
   const screenshotsPath = join(dataPath, 'screenshots')
   const snipsPath = join(screenshotsPath, 'snips')
+  const recordingsPath = join(dataPath, 'recordings')
 
   // Create directories if they don't exist
   if (!existsSync(dataPath)) mkdirSync(dataPath, { recursive: true })
   if (!existsSync(screenshotsPath)) mkdirSync(screenshotsPath, { recursive: true })
   if (!existsSync(snipsPath)) mkdirSync(snipsPath, { recursive: true })
+  if (!existsSync(recordingsPath)) mkdirSync(recordingsPath, { recursive: true })
 
   // Redirect Electron's default 'userData' path to our portable 'data' folder
   app.setPath('userData', dataPath)
@@ -113,6 +144,7 @@ function createWindow(): void {
     const screenshotHotkey = store.get('screenshotHotkey', 'Alt+S') as string
     const snipHotkey = store.get('snipHotkey', 'Alt+Shift+S') as string
     const toggleHotkey = store.get('toggleHotkey', 'Alt+V') as string
+    const clipHotkey = store.get('clipHotkey', 'Alt+C') as string
 
     // Unregister existing shortcuts to avoid conflicts/duplicates
     globalShortcut.unregisterAll()
@@ -183,6 +215,12 @@ function createWindow(): void {
           }
         })
       }
+      // Register "Save Clip" hotkey — triggers instant replay clip save in renderer
+      if (clipHotkey) {
+        globalShortcut.register(clipHotkey, (): void => {
+          mainWindow.webContents.send('trigger-save-clip')
+        })
+      }
     } catch (error) {
       console.error('Failed to register shortcuts:', error)
     }
@@ -197,12 +235,23 @@ function createWindow(): void {
     registerShortcuts()
   })
 
-  // Get current settings (hotkeys) from store
+  // Get current settings (hotkeys + recording) from store
   ipcMain.handle('get-settings', () => {
     return {
       screenshotHotkey: store.get('screenshotHotkey', 'Alt+S'),
       snipHotkey: store.get('snipHotkey', 'Alt+Shift+S'),
-      toggleHotkey: store.get('toggleHotkey', 'Alt+V')
+      toggleHotkey: store.get('toggleHotkey', 'Alt+V'),
+      clipHotkey: store.get('clipHotkey', 'Alt+C'),
+      bufferingEnabled: store.get('bufferingEnabled', false),
+      bufferLength: store.get('bufferLength', 30),
+      systemAudioEnabled: store.get('systemAudioEnabled', false),
+      micEnabled: store.get('micEnabled', false),
+      selectedMicDeviceId: store.get('selectedMicDeviceId', ''),
+      recordingResolution: store.get('recordingResolution', '1080p'),
+      customAspectRatio: store.get('customAspectRatio', false),
+      aspectRatioPreset: store.get('aspectRatioPreset', '16:9'),
+      regionBoxEnabled: store.get('regionBoxEnabled', false),
+      regionBounds: store.get('regionBounds', null)
     }
   })
 
@@ -233,6 +282,12 @@ function createWindow(): void {
   ipcMain.on('open-screenshot-folder', (): void => {
     const screenshotsPath = join(app.getPath('userData'), 'screenshots')
     shell.openPath(screenshotsPath)
+  })
+
+  // Open the recordings folder in system file explorer
+  ipcMain.on('open-recordings-folder', (): void => {
+    const recordingsPath = join(app.getPath('userData'), 'recordings')
+    shell.openPath(recordingsPath)
   })
 
   // Delete all full screenshots
@@ -323,6 +378,66 @@ function createWindow(): void {
     store.set('savedPromptsAutoSend', autoSend)
     return true
   })
+
+  /* SCREEN RECORDER IPC HANDLERS */
+
+  // Return available desktop capturer sources for the source picker
+  ipcMain.handle('get-desktop-sources', async () => {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen', 'window'],
+      thumbnailSize: { width: 160, height: 90 },
+      fetchWindowIcons: false
+    })
+    return sources.map((s) => ({
+      id: s.id,
+      name: s.name,
+      thumbnailDataUrl: s.thumbnail.toDataURL()
+    }))
+  })
+
+  // Save a recording buffer to the recordings folder, then post-process with
+  // FFmpeg to move the moov atom to the front for instant seekability.
+  ipcMain.handle(
+    'save-recording',
+    async (_, buffer: Uint8Array, filename?: string): Promise<string> => {
+      if (!buffer || buffer.length === 0) {
+        throw new Error('Received empty or null recording buffer')
+      }
+      const recordingsPath = join(app.getPath('userData'), 'recordings')
+      if (!existsSync(recordingsPath)) mkdirSync(recordingsPath, { recursive: true })
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const finalName = filename || `recording-${timestamp}.mp4`
+      const filePath = join(recordingsPath, finalName)
+      writeFileSync(filePath, Buffer.from(buffer))
+
+      // Post-process: re-mux with faststart to relocate the moov atom.
+      // This is a copy-only operation (no re-encoding) and finishes in <1 second.
+      const tempPath = filePath + '.tmp.mp4'
+      try {
+        const ffmpegPath = await getFfmpegPath()
+        await execFileAsync(ffmpegPath, [
+          '-i',
+          filePath,
+          '-movflags',
+          'faststart',
+          '-c',
+          'copy',
+          '-y',
+          tempPath
+        ])
+        // Replace the original with the optimized file
+        unlinkSync(filePath)
+        renameSync(tempPath, filePath)
+        console.log(`FFmpeg faststart: ${finalName} optimized for seeking`)
+      } catch (err) {
+        console.error('FFmpeg faststart failed, keeping raw file:', err)
+        // Clean up temp file if it was created
+        if (existsSync(tempPath)) unlinkSync(tempPath)
+      }
+
+      return filePath
+    }
+  )
 }
 
 app.whenReady().then(async () => {

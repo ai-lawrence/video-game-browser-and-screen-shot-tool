@@ -5,20 +5,37 @@ import {
   Settings as SettingsIcon,
   FolderOpen,
   Trash2,
-  Scissors
+  Scissors,
+  Video,
+  Square,
+  Film,
+  Crop
 } from 'lucide-react'
 
 interface SidebarProps {
   activeAI: 'chatgpt' | 'gemini' | 'perplexity'
   setActiveAI: (ai: 'chatgpt' | 'gemini' | 'perplexity') => void
   onSettingsClick: () => void
+  isRecording: boolean
+  onToggleRecording: () => void
+  regionBoxVisible: boolean
+  onToggleRegionBox: () => void
 }
 
 /**
  * Sidebar Component
- * Provides navigation between different AI providers and access to management tools.
+ * Provides navigation between different AI providers, recording controls,
+ * and access to management tools.
  */
-const Sidebar: React.FC<SidebarProps> = ({ activeAI, setActiveAI, onSettingsClick }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  activeAI,
+  setActiveAI,
+  onSettingsClick,
+  isRecording,
+  onToggleRecording,
+  regionBoxVisible,
+  onToggleRegionBox
+}) => {
   // Delete all full screenshots from the portable data folder
   const handleClearScreenshots = (): void => {
     if (
@@ -61,6 +78,31 @@ const Sidebar: React.FC<SidebarProps> = ({ activeAI, setActiveAI, onSettingsClic
         >
           <Search size={24} />
         </button>
+        <div className="sidebar-separator" />
+
+        {/* Screen Recording Controls */}
+        <button
+          className={`sidebar-item recorder-btn ${isRecording ? 'active' : ''}`}
+          onClick={onToggleRecording}
+          title={isRecording ? 'Stop Recording' : 'Start Recording'}
+        >
+          {isRecording ? <Square size={20} /> : <Video size={24} />}
+        </button>
+        <button
+          className={`sidebar-item region-toggle-btn ${regionBoxVisible ? 'active' : ''}`}
+          onClick={onToggleRegionBox}
+          title={regionBoxVisible ? 'Hide Capture Region' : 'Show Capture Region'}
+        >
+          <Crop size={24} />
+        </button>
+        <button
+          className="sidebar-item"
+          onClick={() => window.api.openRecordingsFolder()}
+          title="Open Recordings Folder"
+        >
+          <Film size={24} />
+        </button>
+
         <div className="sidebar-separator" />
         <button
           className="sidebar-item"

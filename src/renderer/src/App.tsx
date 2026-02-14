@@ -1,9 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Sidebar from './components/Sidebar'
 import Settings from './components/Settings'
 import SnippingTool from './components/SnippingTool'
 import SavedPromptsPanel from './components/SavedPrompts/SavedPromptsPanel'
 import Toast from './components/Toast'
+import RecorderOverlay from './components/RecorderOverlay'
+import RegionSelector from './components/RegionSelector'
+import { useScreenRecorder } from './hooks/useScreenRecorder'
+import type { RegionBounds } from './hooks/useScreenRecorder'
 import { getProviderForUrl } from './providers'
 import { SavedPrompt } from './providers/types'
 
@@ -23,6 +27,25 @@ function App(): React.JSX.Element {
   const [toastMsg, setToastMsg] = useState('')
   const [showToast, setShowToast] = useState(false)
 
+  // Recording settings state
+  const [bufferingEnabled, setBufferingEnabled] = useState(false)
+  const [bufferLength, setBufferLength] = useState(30)
+
+  // Audio settings state
+  const [systemAudioEnabled, setSystemAudioEnabled] = useState(false)
+  const [micEnabled, setMicEnabled] = useState(false)
+  const [selectedMicDeviceId, setSelectedMicDeviceId] = useState('')
+
+  // Video/resolution settings state
+  const [recordingResolution, setRecordingResolution] = useState('1080p')
+  const [customAspectRatio, setCustomAspectRatio] = useState(false)
+  const [aspectRatioPreset, setAspectRatioPreset] = useState('16:9')
+  const [regionBounds, setRegionBounds] = useState<RegionBounds | null>(null)
+  const [regionBoxVisible, setRegionBoxVisible] = useState(false)
+
+  // Ref for debouncing region bounds saves to the store
+  const regionSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const screenshotRef = useRef<string | null>(null)
 
   // References for AI Webviews to programmatically focus/paste
@@ -37,6 +60,179 @@ function App(): React.JSX.Element {
   const dragOffsetRef = useRef({ x: 0, y: 0 })
   const positionRef = useRef({ x: 20, y: 20 }) // Initialize with initial position
   const requestRef = useRef<number | null>(null) // RAF ID for cancelling animations
+
+  // Track if buffering has been auto-started to avoid re-triggering
+  const bufferAutoStartedRef = useRef(false)
+
+  // Screen recorder hook
+  const recorder = useScreenRecorder({
+    bufferLength,
+    systemAudioEnabled,
+    micEnabled,
+    selectedMicDeviceId,
+    recordingResolution,
+    customAspectRatio,
+    aspectRatioPreset,
+    regionBoxEnabled: customAspectRatio,
+    regionBounds,
+    onSaved: (filePath) => {
+      const name = filePath.split(/[\\/]/).pop() || 'file'
+      setToastMsg(`Saved: ${name}`)
+      setShowToast(true)
+    },
+    onError: (error) => {
+      setToastMsg(`Recording error: ${error}`)
+      setShowToast(true)
+    }
+  })
+
+  // Reusable settings loader — called on mount and when Settings panel closes
+  const loadSettings = useCallback((): void => {
+    window.api.getSettings().then((settings) => {
+      setBufferingEnabled(settings.bufferingEnabled)
+      setBufferLength(settings.bufferLength)
+      setSystemAudioEnabled(settings.systemAudioEnabled)
+      setMicEnabled(settings.micEnabled)
+      setSelectedMicDeviceId(settings.selectedMicDeviceId)
+      setRecordingResolution(settings.recordingResolution)
+      setCustomAspectRatio(settings.customAspectRatio)
+      setAspectRatioPreset(settings.aspectRatioPreset)
+      setRegionBoxVisible(settings.regionBoxEnabled)
+      if (settings.regionBounds) setRegionBounds(settings.regionBounds)
+    })
+  }, [])
+
+  /** Debounced save of region bounds to the electron store (500ms) */
+  const saveRegionBounds = useCallback((bounds: RegionBounds): void => {
+    setRegionBounds(bounds)
+    if (regionSaveTimerRef.current) clearTimeout(regionSaveTimerRef.current)
+    regionSaveTimerRef.current = setTimeout(() => {
+      window.api.saveSettings({ regionBounds: bounds })
+    }, 500)
+  }, [])
+
+  /** Toggle the region box on/off and persist to store */
+  const handleToggleRegionBox = useCallback((): void => {
+    setRegionBoxVisible((prev) => {
+      const next = !prev
+      window.api.saveSettings({ regionBoxEnabled: next })
+      return next
+    })
+  }, [])
+
+  // Load settings on mount
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
+
+  /**
+   * Helper: get the primary desktop source ID for recording.
+   * Uses the first available screen source from desktopCapturer.
+   */
+  const getPrimarySourceId = useCallback(async (): Promise<string | null> => {
+    try {
+      const sources = await window.api.getDesktopSources()
+      const screenSource = sources.find((s) => s.name === 'Entire Screen' || s.name === 'Screen 1')
+      return screenSource?.id || sources[0]?.id || null
+    } catch {
+      return null
+    }
+  }, [])
+
+  // Auto-start buffering when settings enable it
+  useEffect(() => {
+    if (bufferingEnabled && recorder.status === 'idle' && !bufferAutoStartedRef.current) {
+      bufferAutoStartedRef.current = true
+      getPrimarySourceId().then((srcId) => {
+        if (srcId) recorder.startBuffering(srcId)
+      })
+    } else if (!bufferingEnabled && recorder.status === 'buffering') {
+      bufferAutoStartedRef.current = false
+      recorder.stopBuffering()
+    }
+  }, [
+    bufferingEnabled,
+    recorder.status,
+    getPrimarySourceId,
+    recorder.startBuffering,
+    recorder.stopBuffering
+  ])
+
+  // Restart buffering when the Lock Aspect Ratio setting changes so the stream
+  // pipeline is rebuilt with (or without) canvas-based cropping.
+  // The crop button (regionBoxVisible) only controls UI visibility of the region
+  // box — it does NOT affect the recording pipeline.
+  const prevCustomAspectRef = useRef(customAspectRatio)
+  useEffect(() => {
+    if (prevCustomAspectRef.current === customAspectRatio) return
+    prevCustomAspectRef.current = customAspectRatio
+
+    if (recorder.status === 'buffering') {
+      recorder.restartBuffering()
+    }
+  }, [customAspectRatio, recorder.status, recorder.restartBuffering])
+
+  // Also restart buffering when bounds transition from null → valid while
+  // Lock Aspect Ratio is ON. This handles the first-ever-use case where no bounds
+  // exist in the store: RegionSelector mounts, emits initial bounds via onChange,
+  // and then we rebuild the pipeline with the canvas crop.
+  const prevBoundsRef = useRef(regionBounds)
+  useEffect(() => {
+    const hadBounds = prevBoundsRef.current !== null
+    const hasBounds = regionBounds !== null
+    prevBoundsRef.current = regionBounds
+
+    if (!hadBounds && hasBounds && customAspectRatio && recorder.status === 'buffering') {
+      recorder.restartBuffering()
+    }
+  }, [regionBounds, customAspectRatio, recorder.status, recorder.restartBuffering])
+
+  // Keep a ref to the latest saveClip so the IPC listener never goes stale
+  const saveClipRef = useRef(recorder.saveClip)
+  useEffect(() => {
+    saveClipRef.current = recorder.saveClip
+  }, [recorder.saveClip])
+
+  // Register the "Save Clip" hotkey listener ONCE — cleanup removes it on unmount
+  useEffect(() => {
+    const cleanup = window.api.onTriggerSaveClip(() => {
+      saveClipRef.current()
+    })
+    return cleanup
+  }, [])
+
+  // Re-read recording + audio settings when settings panel closes (in case they changed)
+  useEffect(() => {
+    if (!isSettingsOpen) {
+      window.api.getSettings().then((settings) => {
+        setBufferingEnabled(settings.bufferingEnabled)
+        setBufferLength(settings.bufferLength)
+        setSystemAudioEnabled(settings.systemAudioEnabled)
+        setMicEnabled(settings.micEnabled)
+        setSelectedMicDeviceId(settings.selectedMicDeviceId)
+      })
+    }
+  }, [isSettingsOpen])
+
+  /** Toggle manual recording on/off */
+  const handleToggleRecording = useCallback(async (): Promise<void> => {
+    if (recorder.status === 'recording') {
+      recorder.stopManualRecording()
+    } else if (recorder.status === 'idle' || recorder.status === 'buffering') {
+      // If buffering, stop it first before starting manual recording
+      if (recorder.status === 'buffering') {
+        recorder.stopBuffering()
+        bufferAutoStartedRef.current = false
+      }
+      const srcId = await getPrimarySourceId()
+      if (srcId) {
+        recorder.startManualRecording(srcId)
+      } else {
+        setToastMsg('No screen source available for recording')
+        setShowToast(true)
+      }
+    }
+  }, [recorder, getPrimarySourceId])
 
   useEffect(() => {
     // Listen for global screenshot events triggered by main process/hotkeys
@@ -166,7 +362,7 @@ function App(): React.JSX.Element {
       setTimeout(() => {
         try {
           if (activeRef.current) {
-            ;(activeRef.current as any).paste()
+            ; (activeRef.current as any).paste()
             setScreenshot(null)
             screenshotRef.current = null
           }
@@ -246,6 +442,10 @@ function App(): React.JSX.Element {
           activeAI={activeAI}
           setActiveAI={setActiveAI}
           onSettingsClick={() => setIsSettingsOpen(true)}
+          isRecording={recorder.status === 'recording'}
+          onToggleRecording={handleToggleRecording}
+          regionBoxVisible={regionBoxVisible}
+          onToggleRegionBox={handleToggleRegionBox}
         />
 
         <main
@@ -263,6 +463,16 @@ function App(): React.JSX.Element {
               ×
             </button>
           </div>
+
+          {/* Recorder status overlay */}
+          <RecorderOverlay
+            status={recorder.status}
+            elapsed={recorder.elapsed}
+            bufferSeconds={recorder.bufferSeconds}
+            bufferLength={bufferLength}
+            systemAudioEnabled={systemAudioEnabled}
+            micEnabled={micEnabled}
+          />
 
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <div
@@ -331,7 +541,12 @@ function App(): React.JSX.Element {
 
           {isSettingsOpen && (
             <div onMouseEnter={() => window.api.setIgnoreMouseEvents(false)}>
-              <Settings onClose={() => setIsSettingsOpen(false)} />
+              <Settings
+                onClose={() => {
+                  setIsSettingsOpen(false)
+                  loadSettings()
+                }}
+              />
             </div>
           )}
         </main>
@@ -346,6 +561,22 @@ function App(): React.JSX.Element {
       )}
 
       <Toast message={toastMsg} isVisible={showToast} onClose={() => setShowToast(false)} />
+
+      {/* Region selector overlay — controlled by sidebar toggle, hidden during recording */}
+      {regionBoxVisible && recorder.status !== 'recording' && (
+        <RegionSelector
+          aspectRatio={aspectRatioPreset}
+          visible={regionBoxVisible}
+          lockAspectRatio={customAspectRatio}
+          initialBounds={regionBounds}
+          onChange={saveRegionBounds}
+          onAspectRatioChange={(ratio, locked) => {
+            setCustomAspectRatio(locked)
+            setAspectRatioPreset(ratio)
+            window.api.saveSettings({ customAspectRatio: locked, aspectRatioPreset: ratio })
+          }}
+        />
+      )}
     </>
   )
 }
