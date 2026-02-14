@@ -1,5 +1,12 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 
+interface AudioFileInfo {
+  name: string
+  path: string
+  sizeBytes: number
+  createdAt: number
+}
+
 interface CustomAPI {
   updateHotkeys: () => void
   /** Controls if the window ignores mouse events (click-through) */
@@ -22,6 +29,7 @@ interface CustomAPI {
     aspectRatioPreset: string
     regionBoxEnabled: boolean
     regionBounds: { x: number; y: number; w: number; h: number } | null
+    audioRecordingMode: string
   }>
   saveSettings: (settings: {
     screenshotHotkey?: string
@@ -38,12 +46,12 @@ interface CustomAPI {
     aspectRatioPreset?: string
     regionBoxEnabled?: boolean
     regionBounds?: { x: number; y: number; w: number; h: number } | null
+    audioRecordingMode?: string
   }) => void
   writeToClipboard: (dataUrl: string) => Promise<void>
   openScreenshotFolder: () => void
   clearScreenshots: () => void
   clearSnips: () => void
-  saveSnip: (dataUrl: string) => void
   saveSnip: (dataUrl: string) => void
   quitApp: () => void
 
@@ -59,6 +67,16 @@ interface CustomAPI {
   saveRecording: (buffer: Uint8Array, filename: string) => Promise<string>
   openRecordingsFolder: () => void
   onTriggerSaveClip: (callback: () => void) => () => void
+
+  // Audio Recording API
+  saveAudioRecording: (buffer: Uint8Array, filename: string) => Promise<string>
+  listAudioFiles: () => Promise<AudioFileInfo[]>
+  deleteAudioFile: (filePath: string) => Promise<boolean>
+  trimAudio: (filePath: string, startSec: number, endSec: number) => Promise<string>
+  getAudioDuration: (filePath: string) => Promise<number>
+  readAudioFile: (filePath: string) => Promise<Uint8Array | null>
+  openAudioFolder: () => void
+  openTrimmerWindow: () => void
 }
 
 export interface SavedPrompt {

@@ -8,6 +8,8 @@ import RecorderOverlay from './components/RecorderOverlay'
 import RegionSelector from './components/RegionSelector'
 import { useScreenRecorder } from './hooks/useScreenRecorder'
 import type { RegionBounds } from './hooks/useScreenRecorder'
+import { useAudioRecorder } from './hooks/useAudioRecorder'
+import type { AudioRecordingMode } from './hooks/useAudioRecorder'
 import { getProviderForUrl } from './providers'
 import { SavedPrompt } from './providers/types'
 
@@ -42,6 +44,9 @@ function App(): React.JSX.Element {
   const [aspectRatioPreset, setAspectRatioPreset] = useState('16:9')
   const [regionBounds, setRegionBounds] = useState<RegionBounds | null>(null)
   const [regionBoxVisible, setRegionBoxVisible] = useState(false)
+
+  // Audio recording mode setting
+  const [audioRecordingMode, setAudioRecordingMode] = useState<AudioRecordingMode>('system')
 
   // Ref for debouncing region bounds saves to the store
   const regionSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -99,6 +104,7 @@ function App(): React.JSX.Element {
       setAspectRatioPreset(settings.aspectRatioPreset)
       setRegionBoxVisible(settings.regionBoxEnabled)
       if (settings.regionBounds) setRegionBounds(settings.regionBounds)
+      setAudioRecordingMode((settings.audioRecordingMode || 'system') as AudioRecordingMode)
     })
   }, [])
 
@@ -210,9 +216,39 @@ function App(): React.JSX.Element {
         setSystemAudioEnabled(settings.systemAudioEnabled)
         setMicEnabled(settings.micEnabled)
         setSelectedMicDeviceId(settings.selectedMicDeviceId)
+        setAudioRecordingMode((settings.audioRecordingMode || 'system') as AudioRecordingMode)
       })
     }
   }, [isSettingsOpen])
+
+  // Audio recorder hook
+  const audioRecorder = useAudioRecorder({
+    audioRecordingMode,
+    selectedMicDeviceId,
+    onSaved: (filePath) => {
+      const name = filePath.split(/[\\/]/).pop() || 'file'
+      setToastMsg(`Audio saved: ${name}`)
+      setShowToast(true)
+    },
+    onError: (error) => {
+      setToastMsg(`Audio error: ${error}`)
+      setShowToast(true)
+    }
+  })
+
+  /** Toggle audio-only recording on/off */
+  const handleToggleAudioRecording = useCallback(async (): Promise<void> => {
+    if (audioRecorder.isRecording) {
+      audioRecorder.stopRecording()
+    } else {
+      await audioRecorder.startRecording()
+    }
+  }, [audioRecorder])
+
+  /** Open the audio trimmer window */
+  const handleOpenTrimmer = useCallback((): void => {
+    window.api.openTrimmerWindow()
+  }, [])
 
   /** Toggle manual recording on/off */
   const handleToggleRecording = useCallback(async (): Promise<void> => {
@@ -446,6 +482,9 @@ function App(): React.JSX.Element {
           onToggleRecording={handleToggleRecording}
           regionBoxVisible={regionBoxVisible}
           onToggleRegionBox={handleToggleRegionBox}
+          isAudioRecording={audioRecorder.isRecording}
+          onToggleAudioRecording={handleToggleAudioRecording}
+          onOpenTrimmer={handleOpenTrimmer}
         />
 
         <main
@@ -473,6 +512,16 @@ function App(): React.JSX.Element {
             systemAudioEnabled={systemAudioEnabled}
             micEnabled={micEnabled}
           />
+
+          {/* Audio-only recording indicator */}
+          {audioRecorder.isRecording && (
+            <div className="audio-recording-indicator">
+              <span className="audio-rec-dot" />
+              Audio Recording ·{' '}
+              {String(Math.floor(audioRecorder.elapsed / 60)).padStart(2, '0')}:
+              {String(audioRecorder.elapsed % 60).padStart(2, '0')}
+            </div>
+          )}
 
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <div

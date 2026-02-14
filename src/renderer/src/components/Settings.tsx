@@ -21,6 +21,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     recordingResolution: string
     customAspectRatio: boolean
     aspectRatioPreset: string
+    audioRecordingMode: string
   }>({
     screenshotHotkey: 'Alt+S',
     snipHotkey: 'Alt+Shift+S',
@@ -33,7 +34,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     selectedMicDeviceId: '',
     recordingResolution: '1080p',
     customAspectRatio: false,
-    aspectRatioPreset: '16:9'
+    aspectRatioPreset: '16:9',
+    audioRecordingMode: 'system'
   })
   const [error, setError] = useState<string | null>(null)
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([])
@@ -95,7 +97,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       | 'selectedMicDeviceId'
       | 'recordingResolution'
       | 'customAspectRatio'
-      | 'aspectRatioPreset',
+      | 'aspectRatioPreset'
+      | 'audioRecordingMode',
     value: boolean | number | string
   ): void => {
     const newSettings = { ...settings, [key]: value }
@@ -191,6 +194,19 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                   ↻
                 </button>
               </div>
+            </div>
+
+            <div className="settings-row">
+              <label>Audio Recording Mode</label>
+              <select
+                className="settings-select"
+                value={settings.audioRecordingMode}
+                onChange={(e) => handleSettingChange('audioRecordingMode', e.target.value)}
+              >
+                <option value="system">System Audio</option>
+                <option value="system+mic">System + Mic</option>
+                <option value="mic">Mic Only</option>
+              </select>
             </div>
           </section>
 

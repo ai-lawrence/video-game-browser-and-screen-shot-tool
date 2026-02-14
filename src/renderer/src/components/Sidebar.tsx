@@ -9,7 +9,9 @@ import {
   Video,
   Square,
   Film,
-  Crop
+  Crop,
+  Mic,
+  AudioLines
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -20,6 +22,9 @@ interface SidebarProps {
   onToggleRecording: () => void
   regionBoxVisible: boolean
   onToggleRegionBox: () => void
+  isAudioRecording: boolean
+  onToggleAudioRecording: () => void
+  onOpenTrimmer: () => void
 }
 
 /**
@@ -34,7 +39,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   isRecording,
   onToggleRecording,
   regionBoxVisible,
-  onToggleRegionBox
+  onToggleRegionBox,
+  isAudioRecording,
+  onToggleAudioRecording,
+  onOpenTrimmer
 }) => {
   // Delete all full screenshots from the portable data folder
   const handleClearScreenshots = (): void => {
@@ -101,6 +109,20 @@ const Sidebar: React.FC<SidebarProps> = ({
           title="Open Recordings Folder"
         >
           <Film size={24} />
+        </button>
+
+        <div className="sidebar-separator" />
+
+        {/* Audio Recording Controls */}
+        <button
+          className={`sidebar-item audio-rec-btn ${isAudioRecording ? 'active' : ''}`}
+          onClick={onToggleAudioRecording}
+          title={isAudioRecording ? 'Stop Audio Recording' : 'Start Audio Recording'}
+        >
+          <Mic size={24} />
+        </button>
+        <button className="sidebar-item" onClick={onOpenTrimmer} title="Open Audio Trimmer">
+          <AudioLines size={24} />
         </button>
 
         <div className="sidebar-separator" />

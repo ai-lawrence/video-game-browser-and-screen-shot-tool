@@ -3,7 +3,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 /**
  * Recorder status:
  * - 'idle': No active recording or buffering
- * - 'recording': Manual recording in progress (hard cap at 60s)
+ * - 'recording': Manual recording in progress (hard cap at 30 min)
  * - 'buffering': Background instant-replay buffer is running
  */
 export type RecorderStatus = 'idle' | 'recording' | 'buffering'
@@ -37,8 +37,8 @@ interface UseScreenRecorderOptions {
   onError?: (error: string) => void
 }
 
-/** Maximum manual recording duration in seconds */
-const MAX_RECORDING_SECONDS = 60
+/** Maximum manual recording duration in seconds (30 minutes) */
+const MAX_RECORDING_SECONDS = 1800
 
 /** Resolution presets — maps name to max capture dimensions for full-screen mode */
 const RESOLUTION_MAP: Record<string, { maxWidth: number; maxHeight: number }> = {
@@ -49,9 +49,9 @@ const RESOLUTION_MAP: Record<string, { maxWidth: number; maxHeight: number }> = 
 
 /** Bitrate presets — scales with resolution for consistent quality */
 const BITRATE_MAP: Record<string, number> = {
-  '720p': 5_000_000,
-  '1080p': 8_000_000,
-  '1440p': 16_000_000
+  '720p': 10_000_000,
+  '1080p': 20_000_000,
+  '1440p': 50_000_000
 }
 
 /**
@@ -527,7 +527,7 @@ export function useScreenRecorder(options: UseScreenRecorderOptions) {
 
   /**
    * Start a manual recording session.
-   * Auto-stops at MAX_RECORDING_SECONDS (60s).
+   * Auto-stops at MAX_RECORDING_SECONDS (30 min).
    * When custom aspect ratio is enabled, uses canvas-based region cropping.
    */
   const startManualRecording = useCallback(
@@ -579,7 +579,7 @@ export function useScreenRecorder(options: UseScreenRecorderOptions) {
         elapsedRef.current = 0
         setElapsed(0)
 
-        // Elapsed timer — auto-stop at 60s
+        // Elapsed timer — auto-stop at MAX_RECORDING_SECONDS (30 min)
         timerRef.current = setInterval(() => {
           elapsedRef.current += 1
           setElapsed(elapsedRef.current)

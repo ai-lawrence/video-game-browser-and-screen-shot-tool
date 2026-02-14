@@ -16,6 +16,7 @@ import {
   readdirSync,
   unlinkSync,
   writeFileSync,
+  readFileSync,
   lstatSync,
   renameSync
 } from 'fs'
@@ -64,12 +65,14 @@ const setupPortablePaths = (): void => {
   const screenshotsPath = join(dataPath, 'screenshots')
   const snipsPath = join(screenshotsPath, 'snips')
   const recordingsPath = join(dataPath, 'recordings')
+  const audioRecordingsPath = join(dataPath, 'recordings', 'audio')
 
   // Create directories if they don't exist
   if (!existsSync(dataPath)) mkdirSync(dataPath, { recursive: true })
   if (!existsSync(screenshotsPath)) mkdirSync(screenshotsPath, { recursive: true })
   if (!existsSync(snipsPath)) mkdirSync(snipsPath, { recursive: true })
   if (!existsSync(recordingsPath)) mkdirSync(recordingsPath, { recursive: true })
+  if (!existsSync(audioRecordingsPath)) mkdirSync(audioRecordingsPath, { recursive: true })
 
   // Redirect Electron's default 'userData' path to our portable 'data' folder
   app.setPath('userData', dataPath)
@@ -83,6 +86,46 @@ let store: any
 const initStore = async (): Promise<void> => {
   const { default: Store } = await import('electron-store')
   store = new Store()
+}
+
+let trimmerWindow: BrowserWindow | null = null
+
+/**
+ * Creates the audio trimmer window.
+ * A separate, non-transparent window for browsing and trimming MP3 audio files.
+ */
+function createTrimmerWindow(): void {
+  if (trimmerWindow && !trimmerWindow.isDestroyed()) {
+    trimmerWindow.focus()
+    return
+  }
+
+  trimmerWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    minWidth: 600,
+    minHeight: 400,
+    frame: false,
+    transparent: false,
+    backgroundColor: '#18181b',
+    autoHideMenuBar: true,
+    alwaysOnTop: false,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  // Load the trimmer page
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    trimmerWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/trimmer.html`)
+  } else {
+    trimmerWindow.loadFile(join(__dirname, '../renderer/trimmer.html'))
+  }
+
+  trimmerWindow.on('closed', () => {
+    trimmerWindow = null
+  })
 }
 
 /**
@@ -251,7 +294,8 @@ function createWindow(): void {
       customAspectRatio: store.get('customAspectRatio', false),
       aspectRatioPreset: store.get('aspectRatioPreset', '16:9'),
       regionBoxEnabled: store.get('regionBoxEnabled', false),
-      regionBounds: store.get('regionBounds', null)
+      regionBounds: store.get('regionBounds', null),
+      audioRecordingMode: store.get('audioRecordingMode', 'system')
     }
   })
 
@@ -438,6 +482,178 @@ function createWindow(): void {
       return filePath
     }
   )
+
+  /* AUDIO RECORDING IPC HANDLERS */
+
+  // Save an audio recording: receives WebM audio buffer, converts to MP3 via FFmpeg
+  ipcMain.handle(
+    'save-audio-recording',
+    async (_, buffer: Uint8Array, filename?: string): Promise<string> => {
+      if (!buffer || buffer.length === 0) {
+        throw new Error('Received empty or null audio buffer')
+      }
+      const audioPath = join(app.getPath('userData'), 'recordings', 'audio')
+      if (!existsSync(audioPath)) mkdirSync(audioPath, { recursive: true })
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const tempName = `audio-temp-${timestamp}.webm`
+      const tempPath = join(audioPath, tempName)
+      const finalName = filename || `audio-${timestamp}.mp3`
+      const finalPath = join(audioPath, finalName)
+
+      writeFileSync(tempPath, Buffer.from(buffer))
+
+      try {
+        const ffmpegPath = await getFfmpegPath()
+        await execFileAsync(ffmpegPath, [
+          '-i', tempPath,
+          '-vn',
+          '-ab', '192k',
+          '-ar', '44100',
+          '-y',
+          finalPath
+        ])
+        // Clean up temp WebM file
+        if (existsSync(tempPath)) unlinkSync(tempPath)
+        console.log(`Audio saved: ${finalName}`)
+      } catch (err) {
+        console.error('FFmpeg audio conversion failed:', err)
+        // Clean up on failure
+        if (existsSync(tempPath)) unlinkSync(tempPath)
+        throw new Error(`Audio conversion failed: ${err}`)
+      }
+
+      return finalPath
+    }
+  )
+
+  // List all MP3 files in the audio recordings directory
+  ipcMain.handle('list-audio-files', () => {
+    const audioPath = join(app.getPath('userData'), 'recordings', 'audio')
+    if (!existsSync(audioPath)) return []
+
+    const files = readdirSync(audioPath)
+      .filter((f) => f.toLowerCase().endsWith('.mp3'))
+      .map((f) => {
+        const fullPath = join(audioPath, f)
+        const stats = lstatSync(fullPath)
+        return {
+          name: f,
+          path: fullPath,
+          sizeBytes: stats.size,
+          createdAt: stats.birthtimeMs
+        }
+      })
+      .sort((a, b) => b.createdAt - a.createdAt)
+
+    return files
+  })
+
+  // Delete a specific audio file (validates it's in the audio directory)
+  ipcMain.handle('delete-audio-file', (_, filePath: string) => {
+    const audioPath = join(app.getPath('userData'), 'recordings', 'audio')
+    // Security: ensure the file is inside the audio directory
+    if (!filePath.startsWith(audioPath)) {
+      throw new Error('Cannot delete files outside the audio directory')
+    }
+    if (existsSync(filePath)) {
+      unlinkSync(filePath)
+      return true
+    }
+    return false
+  })
+
+  // Trim an audio file using FFmpeg copy mode (no re-encoding)
+  ipcMain.handle(
+    'trim-audio',
+    async (_, filePath: string, startSec: number, endSec: number): Promise<string> => {
+      const audioPath = join(app.getPath('userData'), 'recordings', 'audio')
+      if (!filePath.startsWith(audioPath)) {
+        throw new Error('Cannot trim files outside the audio directory')
+      }
+      if (!existsSync(filePath)) {
+        throw new Error('Source file not found')
+      }
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const baseName = filePath.replace(/\.mp3$/i, '')
+      const trimmedPath = `${baseName}_trimmed_${timestamp}.mp3`
+
+      try {
+        const ffmpegPath = await getFfmpegPath()
+        await execFileAsync(ffmpegPath, [
+          '-i', filePath,
+          '-ss', String(startSec),
+          '-to', String(endSec),
+          '-c', 'copy',
+          '-y',
+          trimmedPath
+        ])
+        console.log(`Audio trimmed: ${trimmedPath}`)
+      } catch (err) {
+        console.error('FFmpeg trim failed:', err)
+        if (existsSync(trimmedPath)) unlinkSync(trimmedPath)
+        throw new Error(`Trim failed: ${err}`)
+      }
+
+      return trimmedPath
+    }
+  )
+
+  // Get audio duration in seconds using FFmpeg
+  ipcMain.handle('get-audio-duration', async (_, filePath: string): Promise<number> => {
+    try {
+      const ffmpegPath = await getFfmpegPath()
+      // Use ffprobe-style approach via ffmpeg: read stderr for duration
+      const { stderr } = await execFileAsync(ffmpegPath, [
+        '-i', filePath,
+        '-f', 'null',
+        '-'
+      ])
+      // Parse duration from FFmpeg output: "Duration: HH:MM:SS.ms"
+      const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.?\d*)/)
+      if (match) {
+        const hours = parseFloat(match[1])
+        const minutes = parseFloat(match[2])
+        const seconds = parseFloat(match[3])
+        return hours * 3600 + minutes * 60 + seconds
+      }
+      return 0
+    } catch (err: unknown) {
+      // FFmpeg writes duration info to stderr even on "error" exit codes
+      const errObj = err as { stderr?: string }
+      if (errObj.stderr) {
+        const match = errObj.stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.?\d*)/)
+        if (match) {
+          const hours = parseFloat(match[1])
+          const minutes = parseFloat(match[2])
+          const seconds = parseFloat(match[3])
+          return hours * 3600 + minutes * 60 + seconds
+        }
+      }
+      return 0
+    }
+  })
+
+  // Open the audio recordings folder in system file explorer
+  ipcMain.on('open-audio-folder', (): void => {
+    const audioPath = join(app.getPath('userData'), 'recordings', 'audio')
+    if (!existsSync(audioPath)) mkdirSync(audioPath, { recursive: true })
+    shell.openPath(audioPath)
+  })
+
+  // Read an audio file as a buffer (for blob URL playback in the trimmer)
+  ipcMain.handle('read-audio-file', (_, filePath: string): Uint8Array | null => {
+    const audioPath = join(app.getPath('userData'), 'recordings', 'audio')
+    if (!filePath.startsWith(audioPath)) return null
+    if (!existsSync(filePath)) return null
+    return new Uint8Array(readFileSync(filePath))
+  })
+
+  // Open the trimmer window
+  ipcMain.on('open-trimmer-window', (): void => {
+    createTrimmerWindow()
+  })
 }
 
 app.whenReady().then(async () => {

@@ -23,14 +23,33 @@ A specialized desktop application designed to provide a persistent, non-intrusiv
 ### 🎬 Screen Recording & Instant Replay *(New in v1.2.0)*
 
 - **Instant Replay Buffer**: Continuously records in the background (configurable: 30s, 1 min, or 2 min) using auto-rotating sessions. Press the **Save Clip** hotkey (default: `Alt+C`) at any time to save the last buffer cycle as an MP4.
-- **Manual Recording**: Start/stop a manual recording session (up to 60 seconds) via the sidebar record button.
+- **Manual Recording**: Start/stop a manual recording session (up to **30 minutes**) via the sidebar record button.
 - **Recorder Status Overlay**: A live HUD shows recording status, elapsed time, buffer fill, and active audio sources.
 
-### 🎧 Audio Recording *(New in v1.2.0)*
+### 🎧 Audio *(Updated in v1.3.0)*
 
-- **System Audio**: Capture desktop/game audio alongside your video.
+- **System Audio**: Capture desktop/game audio alongside your video recordings.
 - **Microphone Input**: Record your voice with selectable mic device and a refresh button to re-enumerate devices.
-- Audio sources are mixed into the final clip automatically.
+- Audio sources are mixed into video clips automatically.
+
+### 🎙️ Standalone Audio Recording *(New in v1.3.0)*
+
+- **Audio-Only Recording**: Record audio independently from video via the **Mic** button in the sidebar.
+- **Three Recording Modes** (configurable in Settings):
+  - **System Audio** — captures desktop/game audio only.
+  - **System + Mic** — mixes desktop audio with your microphone.
+  - **Mic Only** — records microphone input only.
+- Recordings are saved as **MP3** (192 kbps, 44.1 kHz) to `data/recordings/audio/`.
+- **30-minute** auto-stop safety cap.
+- Live recording indicator with elapsed timer.
+
+### ✂️ In-App MP3 Trimmer *(New in v1.3.0)*
+
+- **Separate Trimmer Window**: Open from the sidebar (AudioLines icon) to trim your audio recordings.
+- **Visual Timeline Editor**: Drag start/end handles on a waveform-style timeline to select exactly the portion you want.
+- **Playback Controls**: Play full file or preview the selected region.
+- **Trim & Save**: Saves the trimmed portion as a new MP3 file (uses FFmpeg copy mode for lossless speed).
+- **File Management**: Browse, delete, and open the audio recordings folder.
 
 ### 📐 Custom Recording Region *(New in v1.2.0)*
 
@@ -55,9 +74,10 @@ Choose your recording resolution:
 
 ### 💾 Recordings Management *(New in v1.2.0)*
 
-- Clips are saved to the portable `data/recordings/` directory.
-- Open the recordings folder directly from the sidebar.
-- Toast notifications confirm when a clip is saved.
+- Video clips are saved to the portable `data/recordings/` directory.
+- Audio recordings are saved to `data/recordings/audio/`.
+- Open recordings folders directly from the sidebar.
+- Toast notifications confirm when a clip or audio file is saved.
 
 ## 🛠️ Installation & Build
 
@@ -125,12 +145,17 @@ You can download the latest portable executable directly from the [GitHub Releas
     - You can hide the box (click Crop again) while Lock Aspect Ratio stays ON — recording will still capture only the region.
     - Turn **Lock Aspect Ratio OFF** to return to full-screen recording.
 
+7.  **Audio Recording**:
+    - Click the **Mic** button in the sidebar to start/stop audio-only recording.
+    - Configure recording mode (System / System+Mic / Mic Only) in Settings.
+    - Click the **AudioLines** button to open the **MP3 Trimmer** window.
+
 ## ⚙️ Configuration
 
 Settings are accessible via the gear icon in the sidebar:
 
 - **Shortcuts**: Rebind hotkeys for screenshot, snip, toggle visibility, and save clip.
-- **Audio**: Toggle system audio and microphone capture, select mic device.
+- **Audio**: Toggle system audio and microphone capture, select mic device, choose **Audio Recording Mode** (System / System+Mic / Mic Only).
 - **Recording**: Choose resolution (720p / 1080p / 1440p), enable custom aspect ratio with preset selection, toggle background buffering, and set buffer length (30s / 1 min / 2 min).
 - **Data Management**: Clear cache or screenshot history.
 
@@ -139,6 +164,6 @@ Settings are accessible via the gear icon in the sidebar:
 - **Electron**: Cross-platform desktop framework.
 - **React**: UI library.
 - **TypeScript**: Type-safe development.
-- **Vite**: Fast build tool and dev server.
+- **Vite**: Fast build tool and dev server (multi-page support for trimmer window).
 - **Electron Store**: Local configuration persistence.
-- **FFmpeg** (bundled via `ffmpeg-static`): Video post-processing for seekable MP4 output.
+- **FFmpeg** (bundled via `ffmpeg-static`): Video post-processing for seekable MP4 output, audio conversion (WebM → MP3), and audio trimming.

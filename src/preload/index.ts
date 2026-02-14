@@ -41,6 +41,7 @@ const api = {
     aspectRatioPreset?: string
     regionBoxEnabled?: boolean
     regionBounds?: { x: number; y: number; w: number; h: number } | null
+    audioRecordingMode?: string
   }) => ipcRenderer.send('save-settings', settings),
 
   // Utility
@@ -67,7 +68,19 @@ const api = {
     const handler = (): void => callback()
     ipcRenderer.on('trigger-save-clip', handler)
     return () => ipcRenderer.removeListener('trigger-save-clip', handler)
-  }
+  },
+
+  // Audio Recording API
+  saveAudioRecording: (buffer: Uint8Array, filename: string) =>
+    ipcRenderer.invoke('save-audio-recording', buffer, filename),
+  listAudioFiles: () => ipcRenderer.invoke('list-audio-files'),
+  deleteAudioFile: (filePath: string) => ipcRenderer.invoke('delete-audio-file', filePath),
+  trimAudio: (filePath: string, startSec: number, endSec: number) =>
+    ipcRenderer.invoke('trim-audio', filePath, startSec, endSec),
+  getAudioDuration: (filePath: string) => ipcRenderer.invoke('get-audio-duration', filePath),
+  readAudioFile: (filePath: string) => ipcRenderer.invoke('read-audio-file', filePath),
+  openAudioFolder: () => ipcRenderer.send('open-audio-folder'),
+  openTrimmerWindow: () => ipcRenderer.send('open-trimmer-window')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
