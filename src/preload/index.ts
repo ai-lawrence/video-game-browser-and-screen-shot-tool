@@ -80,7 +80,17 @@ const api = {
   getAudioDuration: (filePath: string) => ipcRenderer.invoke('get-audio-duration', filePath),
   readAudioFile: (filePath: string) => ipcRenderer.invoke('read-audio-file', filePath),
   openAudioFolder: () => ipcRenderer.send('open-audio-folder'),
-  openTrimmerWindow: () => ipcRenderer.send('open-trimmer-window')
+  openTrimmerWindow: () => ipcRenderer.send('open-trimmer-window'),
+
+  // Auto-Updater API
+  checkForUpdate: () => ipcRenderer.invoke('check-for-update'),
+  downloadUpdate: (downloadUrl: string) => ipcRenderer.invoke('download-update', downloadUrl),
+  onUpdateAvailable: (cb: (info: unknown) => void) => {
+    ipcRenderer.on('update-available', (_, info) => cb(info))
+  },
+  onUpdateProgress: (cb: (percent: number) => void) => {
+    ipcRenderer.on('update-download-progress', (_, pct) => cb(pct))
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

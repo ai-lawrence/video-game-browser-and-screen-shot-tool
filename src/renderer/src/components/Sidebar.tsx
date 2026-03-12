@@ -13,6 +13,7 @@ import {
   Mic,
   AudioLines
 } from 'lucide-react'
+import UpdateBanner from './UpdateBanner'
 
 interface SidebarProps {
   activeAI: 'chatgpt' | 'gemini' | 'perplexity'
@@ -76,6 +77,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             <small>Gaming Suite</small>
           </div>
         </div>
+
+        <UpdateBanner />
 
         {/* AI Engine Buttons */}
         <div className="sidebar-section-label">Engines</div>

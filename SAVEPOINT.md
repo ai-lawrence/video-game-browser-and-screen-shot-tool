@@ -1,9 +1,11 @@
-# Savepoint — 2026-03-12
+# Savepoint — 2026-03-12 (Evening Update)
 
 ## Current Version
-`v1.3.1` — version bumped; portable exe built clean.
+`v1.3.1` — tagged, pushed to GitHub, portable `.exe` built clean.
 
-## What Was Done This Session
+---
+
+## What Was Done Today
 
 ### 1. Full UI Redesign
 - **Design system**: CSS variables for cyber/teal palette (`--primary: #25f4f4`, `--surface: #102222`, `--bg-dark: #080c0c`)
@@ -28,9 +30,19 @@
 ### 5. README Updated
 - Added UI redesign section, waveform detail, bug fixes section
 
+### 6. Version Bump & GitHub Push ✅
+- `package.json` bumped to `v1.3.1`
+- Git tag `v1.3.1` created and pushed to `origin/main`
+- Portable `.exe` built successfully via `npm run build:win`
+
+### 7. UI Overhaul Planning (No Code Changes)
+- Explored "nano banana 2" design system for a future full UI overhaul
+- Generated Stitch UI mockups for approval
+- **Status**: Planning only — no code was written or merged for this effort
+
 ---
 
-## Key Files Modified
+## Key Files Modified (This Session)
 | File | What Changed |
 |------|-------------|
 | `src/renderer/src/assets/main.css` | Full design token system; removed sidebar drag region |
@@ -39,18 +51,24 @@
 | `src/renderer/src/App.tsx` | Sidebar width offset 60→256 |
 | `src/renderer/src/assets/trimmer.css` | Visual consistency tweaks |
 | `README.md` | Updated with all new features |
+| `package.json` | Version → 1.3.1 |
 
 ---
 
 ## Known State
-- Dev server: ✅ running (`npm run dev`)
+- Git: ✅ clean — `main` at `1cc0a9a`, tagged `v1.3.1`, pushed to origin
 - TypeScript: ✅ zero errors
+- Build: ✅ portable `.exe` produced clean
 - Clickthrough: ✅ fixed
 - Window dragging: handled by `.move-handle` in main content area (sidebar is no longer a drag region)
 
-## Potential Next Steps
+## Completed Next Steps (from prior savepoint)
+- [x] Version bump to v1.3.1
+- [x] Build portable `.exe` (`npm run build:win`)
+- [x] Push to GitHub with tag
+
+## Remaining / Future Work
 - [ ] Test sidebar clickthrough fix in-game (full-screen borderless)
-- [ ] Version bump to v1.3.1 or tag v1.3.0 release
-- [ ] Build portable `.exe` (`npm run build:win`)
 - [ ] Add waveform scrubbing / click-to-seek in AudioTrimmer
 - [ ] Consider persisting sidebar collapse state
+- [ ] UI overhaul (Stitch/nano-banana-2 designs explored, not yet implemented)

@@ -7,6 +7,13 @@ interface AudioFileInfo {
   createdAt: number
 }
 
+interface UpdateInfo {
+  updateAvailable: boolean
+  latestVersion: string
+  downloadUrl: string
+  releaseNotes: string
+}
+
 interface CustomAPI {
   updateHotkeys: () => void
   /** Controls if the window ignores mouse events (click-through) */
@@ -77,6 +84,12 @@ interface CustomAPI {
   readAudioFile: (filePath: string) => Promise<Uint8Array | null>
   openAudioFolder: () => void
   openTrimmerWindow: () => void
+
+  // Auto-Updater API
+  checkForUpdate: () => Promise<UpdateInfo | null>
+  downloadUpdate: (downloadUrl: string) => Promise<void>
+  onUpdateAvailable: (cb: (info: UpdateInfo) => void) => void
+  onUpdateProgress: (cb: (percent: number) => void) => void
 }
 
 export interface SavedPrompt {

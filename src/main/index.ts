@@ -43,6 +43,7 @@ async function getFfmpegPath(): Promise<string> {
 }
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { checkForUpdate, downloadAndApplyUpdate } from './updater'
 
 // Set up portable data directory to ensure data is saved locally alongside the executable
 // This is critical for the "portable" aspect of the application.
@@ -165,6 +166,18 @@ function createWindow(): void {
     const primaryDisplay = screen.getPrimaryDisplay()
     const { width, height } = primaryDisplay.workAreaSize
     mainWindow.setBounds({ x: 0, y: 0, width, height })
+
+    // Auto-check for updates 5 seconds after window is ready (non-blocking)
+    setTimeout(async () => {
+      try {
+        const updateInfo = await checkForUpdate()
+        if (updateInfo) {
+          mainWindow.webContents.send('update-available', updateInfo)
+        }
+      } catch (err) {
+        console.error('Auto update check failed:', err)
+      }
+    }, 5000)
   })
 
   // Handle new window creation request from webviews (e.g., clicking links in chat)
@@ -653,6 +666,18 @@ function createWindow(): void {
   // Open the trimmer window
   ipcMain.on('open-trimmer-window', (): void => {
     createTrimmerWindow()
+  })
+
+  /* AUTO-UPDATER IPC HANDLERS */
+
+  // Manually check for updates (triggered from renderer)
+  ipcMain.handle('check-for-update', async () => {
+    return await checkForUpdate()
+  })
+
+  // Download and apply the update (starts download, writes bat script, quits app)
+  ipcMain.handle('download-update', async (_, downloadUrl: string) => {
+    await downloadAndApplyUpdate(downloadUrl, mainWindow)
   })
 }
 
