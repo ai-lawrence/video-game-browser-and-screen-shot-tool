@@ -1,19 +1,17 @@
+/* ── Saved Prompts Panel ── */
 .saved-prompts-panel {
   display: flex;
   flex-direction: column;
-  background: var(--color-background-soft);
-  /* Assuming base vars exist, fallbacks below */
-  background-color: #2a2a2a;
-  border-bottom: 1px solid #444;
-  padding: 8px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px 10px;
   max-height: 150px;
-  /* Limit height to save screen space */
   overflow: hidden;
-  color: #eee;
+  color: var(--text-primary);
 }
 
 .saved-prompts-panel.disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   pointer-events: none;
 }
 
@@ -25,10 +23,11 @@
 }
 
 .panel-title {
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
-  color: #aaa;
+  color: var(--primary);
+  letter-spacing: 0.1em;
 }
 
 .panel-controls {
@@ -39,23 +38,23 @@
 .icon-btn {
   background: transparent;
   border: none;
-  color: #aaa;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s;
 }
 
 .icon-btn:hover {
-  background: #444;
-  color: #fff;
+  background: var(--primary-faint);
+  color: var(--primary);
 }
 
 .toggle-autosend.active {
-  color: #4ade80;
-  /* Green */
+  color: var(--primary);
 }
 
 .prompts-list {
@@ -67,41 +66,42 @@
 }
 
 .empty-state {
-  font-size: 0.8rem;
-  color: #666;
+  font-size: 0.75rem;
+  color: var(--text-muted);
   text-align: center;
   width: 100%;
   padding: 10px;
 }
 
-/* Prompt Chip */
+/* ── Prompt Chip ── */
 .prompt-chip {
   display: inline-flex;
   align-items: center;
-  background: #333;
-  border-radius: 12px;
+  background: var(--bg-dark);
+  border-radius: 10px;
   padding-right: 4px;
-  border: 1px solid #444;
+  border: 1px solid var(--border-color);
   transition: all 0.2s;
   max-width: 150px;
 }
 
 .prompt-chip:hover {
-  background: #444;
-  border-color: #555;
+  background: var(--surface);
+  border-color: var(--border-hover);
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(37, 244, 244, 0.1);
 }
 
 .chip-main {
   background: transparent;
   border: none;
-  color: #ddd;
+  color: var(--text-primary);
   padding: 4px 8px;
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -109,7 +109,7 @@
 }
 
 .chip-icon {
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .chip-label {
@@ -118,14 +118,14 @@
 }
 
 .autosend-indicator {
-  color: #4ade80;
+  color: var(--primary);
   margin-left: 2px;
 }
 
 .chip-delete {
   background: transparent;
   border: none;
-  color: #666;
+  color: var(--text-muted);
   padding: 4px;
   cursor: pointer;
   border-radius: 50%;
@@ -140,33 +140,34 @@
 }
 
 .chip-delete:hover {
-  color: #ff6b6b;
-  background: #222;
+  color: var(--error-color);
+  background: rgba(239, 68, 68, 0.1);
 }
 
-/* Modal */
+/* ── Modal ── */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(8, 12, 12, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .modal-content {
-  background: #222;
-  border: 1px solid #444;
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
   width: 400px;
-  padding: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  color: #eee;
+  padding: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 20px var(--primary-faint);
+  color: var(--text-primary);
 }
 
 .modal-header {
@@ -178,46 +179,57 @@
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.close-btn {
-  background: transparent;
-  border: none;
-  color: #888;
-  cursor: pointer;
+.modal-header h3::before {
+  content: '';
+  width: 3px;
+  height: 16px;
+  background: var(--primary);
+  border-radius: 2px;
 }
 
 .close-btn:hover {
-  color: #fff;
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error-color);
 }
 
 .form-group {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .form-group label {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   margin-bottom: 4px;
-  color: #aaa;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .form-group input,
 .form-group textarea {
   width: 100%;
-  background: #333;
-  border: 1px solid #444;
-  border-radius: 4px;
-  padding: 8px;
-  color: #fff;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text-primary);
   font-family: inherit;
+  font-size: 0.85rem;
+  transition: border-color 0.2s;
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #666;
+  border-color: var(--border-hover);
+  box-shadow: 0 0 0 2px var(--primary-faint);
 }
 
 .modal-actions {
@@ -229,44 +241,54 @@
 
 .btn-cancel {
   background: transparent;
-  border: 1px solid #444;
-  color: #aaa;
-  padding: 6px 12px;
-  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 7px 14px;
+  border-radius: 8px;
   cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.15s;
+}
+
+.btn-cancel:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
 }
 
 .btn-save {
-  background: #2563eb;
+  background: var(--primary);
   border: none;
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 4px;
+  color: #000;
+  padding: 7px 14px;
+  border-radius: 8px;
   cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+  transition: all 0.15s;
 }
 
 .btn-save:hover {
-  background: #1d4ed8;
+  box-shadow: 0 0 12px var(--primary-glow);
 }
 
 .emoji-btn {
-  background: #333;
-  border: 1px solid #444;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
   font-size: 1.5rem;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   width: 50px;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .emoji-btn:hover {
-  background: #444;
-  border-color: #666;
+  border-color: var(--border-hover);
+  background: var(--surface);
 }
 
 .emoji-picker-container {

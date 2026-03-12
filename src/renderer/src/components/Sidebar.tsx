@@ -63,94 +63,126 @@ const Sidebar: React.FC<SidebarProps> = ({
   }
 
   return (
-    <div className="sidebar">
+    <div
+      className="sidebar"
+      onMouseEnter={() => window.api.setIgnoreMouseEvents(false)}
+    >
       <div className="sidebar-top">
+        {/* Branding */}
+        <div className="sidebar-brand">
+          <div className="sidebar-brand-icon">AI</div>
+          <div className="sidebar-brand-text">
+            <strong>AI Overlay+</strong>
+            <small>Gaming Suite</small>
+          </div>
+        </div>
+
+        {/* AI Engine Buttons */}
+        <div className="sidebar-section-label">Engines</div>
         <button
           className={`sidebar-item ${activeAI === 'chatgpt' ? 'active' : ''}`}
           onClick={() => setActiveAI('chatgpt')}
           title="ChatGPT"
         >
-          <MessageSquare size={24} />
+          <MessageSquare size={18} />
+          <span className="item-label">ChatGPT</span>
         </button>
         <button
           className={`sidebar-item ${activeAI === 'gemini' ? 'active' : ''}`}
           onClick={() => setActiveAI('gemini')}
           title="Gemini"
         >
-          <Cpu size={24} />
+          <Cpu size={18} />
+          <span className="item-label">Gemini</span>
         </button>
         <button
           className={`sidebar-item ${activeAI === 'perplexity' ? 'active' : ''}`}
           onClick={() => setActiveAI('perplexity')}
           title="Perplexity"
         >
-          <Search size={24} />
+          <Search size={18} />
+          <span className="item-label">Perplexity</span>
         </button>
+
         <div className="sidebar-separator" />
 
         {/* Screen Recording Controls */}
+        <div className="sidebar-section-label">Capture</div>
         <button
           className={`sidebar-item recorder-btn ${isRecording ? 'active' : ''}`}
           onClick={onToggleRecording}
           title={isRecording ? 'Stop Recording' : 'Start Recording'}
         >
-          {isRecording ? <Square size={20} /> : <Video size={24} />}
+          {isRecording ? <Square size={16} /> : <Video size={18} />}
+          <span className="item-label">{isRecording ? 'Stop' : 'Record'}</span>
         </button>
         <button
           className={`sidebar-item region-toggle-btn ${regionBoxVisible ? 'active' : ''}`}
           onClick={onToggleRegionBox}
           title={regionBoxVisible ? 'Hide Capture Region' : 'Show Capture Region'}
         >
-          <Crop size={24} />
+          <Crop size={18} />
+          <span className="item-label">Region</span>
         </button>
         <button
           className="sidebar-item"
           onClick={() => window.api.openRecordingsFolder()}
           title="Open Recordings Folder"
         >
-          <Film size={24} />
+          <Film size={18} />
+          <span className="item-label">Recordings</span>
         </button>
 
         <div className="sidebar-separator" />
 
         {/* Audio Recording Controls */}
+        <div className="sidebar-section-label">Audio</div>
         <button
           className={`sidebar-item audio-rec-btn ${isAudioRecording ? 'active' : ''}`}
           onClick={onToggleAudioRecording}
           title={isAudioRecording ? 'Stop Audio Recording' : 'Start Audio Recording'}
         >
-          <Mic size={24} />
+          <Mic size={18} />
+          <span className="item-label">{isAudioRecording ? 'Stop Mic' : 'Mic Rec'}</span>
         </button>
         <button className="sidebar-item" onClick={onOpenTrimmer} title="Open Audio Trimmer">
-          <AudioLines size={24} />
+          <AudioLines size={18} />
+          <span className="item-label">Trimmer</span>
         </button>
 
         <div className="sidebar-separator" />
+
+        {/* Data Management */}
+        <div className="sidebar-section-label">Data</div>
         <button
           className="sidebar-item"
           onClick={() => window.api.openScreenshotFolder()}
           title="Open Screenshots Folder"
         >
-          <FolderOpen size={24} />
+          <FolderOpen size={18} />
+          <span className="item-label">Screenshots</span>
         </button>
         <button
           className="sidebar-item delete-item"
           onClick={handleClearScreenshots}
           title="Clear Full Screenshots"
         >
-          <Trash2 size={24} />
+          <Trash2 size={18} />
+          <span className="item-label">Clear Shots</span>
         </button>
         <button
           className="sidebar-item delete-item"
           onClick={handleClearSnips}
           title="Clear Snips Only"
         >
-          <Scissors size={24} />
+          <Scissors size={18} />
+          <span className="item-label">Clear Snips</span>
         </button>
       </div>
       <div className="sidebar-bottom">
         <button className="sidebar-item" onClick={onSettingsClick} title="Settings">
-          <SettingsIcon size={24} />
+          <SettingsIcon size={18} />
+          <span className="item-label">Settings</span>
         </button>
       </div>
     </div>

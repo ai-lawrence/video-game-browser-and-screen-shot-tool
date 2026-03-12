@@ -36,6 +36,8 @@ const AudioTrimmer: React.FC = () => {
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const timelineRef = useRef<HTMLDivElement | null>(null)
+  const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const waveformDataRef = useRef<Float32Array | null>(null)
   const draggingRef = useRef<'start' | 'end' | null>(null)
   const animFrameRef = useRef<number>(0)
   const blobUrlRef = useRef<string | null>(null)
@@ -76,12 +78,55 @@ const AudioTrimmer: React.FC = () => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
+  /** Draw the waveform on the canvas from decoded PCM data */
+  const drawWaveform = useCallback((): void => {
+    const canvas = waveformCanvasRef.current
+    const samples = waveformDataRef.current
+    if (!canvas || !samples) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // Match canvas pixel size to display size
+    const rect = canvas.getBoundingClientRect()
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = rect.width * dpr
+    canvas.height = rect.height * dpr
+    ctx.scale(dpr, dpr)
+
+    const w = rect.width
+    const h = rect.height
+    const barCount = Math.min(samples.length, Math.floor(w / 2))
+    const step = samples.length / barCount
+    const barWidth = w / barCount
+    const mid = h / 2
+
+    ctx.clearRect(0, 0, w, h)
+
+    for (let i = 0; i < barCount; i++) {
+      // Average amplitude in this bucket
+      const start = Math.floor(i * step)
+      const end = Math.min(Math.floor((i + 1) * step), samples.length)
+      let sum = 0
+      for (let j = start; j < end; j++) {
+        sum += Math.abs(samples[j])
+      }
+      const avg = sum / (end - start)
+      const barH = Math.max(1, avg * h * 0.9)
+
+      // Gradient-style: brighter toward center
+      ctx.fillStyle = 'rgba(37, 244, 244, 0.55)'
+      ctx.fillRect(i * barWidth, mid - barH / 2, Math.max(1, barWidth - 0.5), barH)
+    }
+  }, [])
+
   /** Select a file for trimming — loads audio via IPC as blob URL */
   const handleSelectFile = useCallback(async (file: AudioFileInfo): Promise<void> => {
     setSelectedFile(file)
     setTrimStart(0)
     setCurrentTime(0)
     setIsPlaying(false)
+    waveformDataRef.current = null
 
     // Revoke previous blob URL
     if (blobUrlRef.current) {
@@ -98,7 +143,8 @@ const AudioTrimmer: React.FC = () => {
       // Load file bytes via IPC and create blob URL
       const buffer = await window.api.readAudioFile(file.path)
       if (buffer) {
-        const blob = new Blob([new Uint8Array(buffer)], { type: 'audio/mpeg' })
+        const uint8 = new Uint8Array(buffer)
+        const blob = new Blob([uint8], { type: 'audio/mpeg' })
         const url = URL.createObjectURL(blob)
         blobUrlRef.current = url
 
@@ -107,12 +153,25 @@ const AudioTrimmer: React.FC = () => {
           audioRef.current.src = url
           audioRef.current.load()
         }
+
+        // Decode audio data for waveform
+        try {
+          const audioCtx = new AudioContext()
+          const arrayBuf = uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength)
+          const decoded = await audioCtx.decodeAudioData(arrayBuf)
+          waveformDataRef.current = decoded.getChannelData(0)
+          audioCtx.close()
+          // Draw after a tick so the canvas has mounted
+          requestAnimationFrame(drawWaveform)
+        } catch (decodeErr) {
+          console.warn('Waveform decode failed:', decodeErr)
+        }
       }
     } catch {
       setDuration(0)
       setTrimEnd(0)
     }
-  }, [])
+  }, [drawWaveform])
 
   /** Delete a file with confirmation */
   const handleDelete = useCallback(
@@ -369,6 +428,12 @@ const AudioTrimmer: React.FC = () => {
 
           {/* Timeline */}
           <div className="trim-timeline" ref={timelineRef} onClick={handleTimelineClick}>
+            {/* Waveform canvas */}
+            <canvas
+              ref={waveformCanvasRef}
+              className="trim-waveform-canvas"
+            />
+
             {/* Selection region */}
             <div
               className="trim-selection"

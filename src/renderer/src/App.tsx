@@ -317,7 +317,7 @@ function App(): React.JSX.Element {
       requestRef.current = requestAnimationFrame(() => {
         requestRef.current = null
         if (isResizingRef.current) {
-          const newWidth = Math.max(300, e.clientX - positionRef.current.x - 60)
+          const newWidth = Math.max(300, e.clientX - positionRef.current.x - 256)
           const newHeight = newWidth * 1.5
           setDimensions({ width: newWidth, height: newHeight })
         } else if (isDraggingRef.current) {
@@ -330,21 +330,35 @@ function App(): React.JSX.Element {
     }
 
     const handleMouseMoveGlobal = (e: MouseEvent): void => {
+      // Never re-enable click-through while SnippingTool is active — it owns the cursor
+      if (screenshotRef.current) return
+
+      // Check .app-container
       const appContainer = document.querySelector('.app-container')
       if (appContainer) {
         const rect = appContainer.getBoundingClientRect()
-        const isInside =
+        const isInsideApp =
           e.clientX >= rect.left &&
           e.clientX <= rect.right &&
           e.clientY >= rect.top &&
           e.clientY <= rect.bottom
-
-        if (!isInside) {
-          if (!screenshotRef.current) {
-            window.api.setIgnoreMouseEvents(true, { forward: true })
-          }
-        }
+        if (isInsideApp) return
       }
+
+      // Also keep mouse events enabled when hovering the region selector overlay
+      const regionOverlay = document.querySelector('.region-selector-overlay')
+      if (regionOverlay) {
+        const rect = regionOverlay.getBoundingClientRect()
+        const isInsideRegion =
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        if (isInsideRegion) return
+      }
+
+      // Mouse is over transparent empty space — re-enable click-through
+      window.api.setIgnoreMouseEvents(true, { forward: true })
     }
 
     const handleMouseUp = (e: MouseEvent): void => {
@@ -464,7 +478,7 @@ function App(): React.JSX.Element {
           position: 'absolute',
           left: position.x,
           top: position.y,
-          width: dimensions.width + 60, // + sidebar width
+          width: dimensions.width + 256, // + sidebar width
           height: dimensions.height
         }}
         onMouseEnter={() => window.api.setIgnoreMouseEvents(false)}

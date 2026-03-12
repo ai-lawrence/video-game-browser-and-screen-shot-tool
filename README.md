@@ -20,6 +20,24 @@ A specialized desktop application designed to provide a persistent, non-intrusiv
 - **Customizable Hotkeys**: Rebindable global hotkeys for toggling visibility, taking screenshots, and saving clips.
 - **Portable Design**: All configuration and data are stored locally in a `data` folder next to the executable, making it fully portable.
 
+---
+
+### 🎨 Redesigned UI *(Updated in v1.3.0)*
+
+The overlay received a full visual overhaul with a **cyber/teal dark aesthetic**:
+
+- **Design token system** — all colors, surfaces, and glows driven by CSS variables (`--primary: #25f4f4`, `--surface: #102222`, `--bg-dark: #080c0c`)
+- **Glassmorphism panels** — frosted-glass backgrounds with `backdrop-filter: blur` throughout
+- **Expanded Navigation Sidebar** — grew from a 60px icon-only strip to a **256px labeled navigation rail**:
+  - Branding section at the top: "AI Overlay+" with "Gaming Suite" tagline
+  - Buttons grouped under section headers: **ENGINES · CAPTURE · AUDIO · DATA**
+  - Each button shows icon + text label
+- **Toast notifications** — glassmorphism dark background with teal border glow
+- **Saved Prompts modal** — teal accent bar, rounded corners, chip hover glow
+- **AudioTrimmer waveform** — real-time canvas waveform visualizer (teal bars) rendered via WebAudio API
+
+---
+
 ### 🎬 Screen Recording & Instant Replay *(New in v1.2.0)*
 
 - **Instant Replay Buffer**: Continuously records in the background (configurable: 30s, 1 min, or 2 min) using auto-rotating sessions. Press the **Save Clip** hotkey (default: `Alt+C`) at any time to save the last buffer cycle as an MP4.
@@ -47,6 +65,7 @@ A specialized desktop application designed to provide a persistent, non-intrusiv
 
 - **Separate Trimmer Window**: Open from the sidebar (AudioLines icon) to trim your audio recordings.
 - **Visual Timeline Editor**: Drag start/end handles on a waveform-style timeline to select exactly the portion you want.
+- **Real-time Waveform**: WebAudio API decodes the file and renders a teal bar-chart waveform directly on-canvas.
 - **Playback Controls**: Play full file or preview the selected region.
 - **Trim & Save**: Saves the trimmed portion as a new MP3 file (uses FFmpeg copy mode for lossless speed).
 - **File Management**: Browse, delete, and open the audio recordings folder.
@@ -78,6 +97,18 @@ Choose your recording resolution:
 - Audio recordings are saved to `data/recordings/audio/`.
 - Open recordings folders directly from the sidebar.
 - Toast notifications confirm when a clip or audio file is saved.
+
+---
+
+## 🐛 Bug Fixes
+
+### Sidebar Clickthrough Fix *(v1.3.0)*
+
+The sidebar previously had `-webkit-app-region: drag` applied as a CSS property — an Electron property that tells the OS to treat the area as a window title bar drag zone. A side effect is that the OS **consumes all mouse events** in drag regions at the system level, bypassing JavaScript entirely. This caused clicks to pass through the sidebar background to the game/desktop behind the overlay.
+
+**Fix**: Removed the drag region from the sidebar. The sidebar background now receives mouse events normally, and `setIgnoreMouseEvents(false)` is reliably called whenever the cursor enters it.
+
+---
 
 ## 🛠️ Installation & Build
 
@@ -144,7 +175,6 @@ You can download the latest portable executable directly from the [GitHub Releas
     - Toggle **Lock Aspect Ratio** in the region box toolbar to enable cropped recording.
     - You can hide the box (click Crop again) while Lock Aspect Ratio stays ON — recording will still capture only the region.
     - Turn **Lock Aspect Ratio OFF** to return to full-screen recording.
-
 7.  **Audio Recording**:
     - Click the **Mic** button in the sidebar to start/stop audio-only recording.
     - Configure recording mode (System / System+Mic / Mic Only) in Settings.
