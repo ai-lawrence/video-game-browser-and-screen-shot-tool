@@ -14,11 +14,10 @@ asarUnpack:
   - node_modules/ffmpeg-static/**
 win:
   executableName: video-game-overlay
-  artifactName: ${name}-${version}.001-portable.${ext}
   target:
     - portable
 portable:
-  artifactName: ${name}-${version}.001-portable.${ext}
+  artifactName: ${name}-${version}-portable.${ext}
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
