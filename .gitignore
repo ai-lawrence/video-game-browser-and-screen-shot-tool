@@ -1,10 +1,40 @@
+# Dependencies
 node_modules
+
+# Build output
 dist
 out
+.build-cache/
+
+# Electron user data
+data/
+
+# Test output
+test-results/
+playwright-report/
+coverage/
+
+# Environment & secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+
+# IDE / OS
+.vscode/
 .DS_Store
+Thumbs.db
+
+# Caches
 .eslintcache
 *.log*
 
-data/
-.build-cache/
-.vscode/
+# Binaries & archives
+*.zip
+*.exe
+*.msi
+*.dmg
+*.AppImage
+*.snap
+*.deb
