@@ -21,10 +21,11 @@ coverage/
 *.key
 *.p12
 
-# IDE / OS
+# IDE / OS / Dev notes
 .vscode/
 .DS_Store
 Thumbs.db
+SAVEPOINT.md
 
 # Caches
 .eslintcache
