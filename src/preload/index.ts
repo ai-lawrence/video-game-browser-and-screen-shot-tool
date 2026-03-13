@@ -90,7 +90,17 @@ const api = {
   },
   onUpdateProgress: (cb: (percent: number) => void) => {
     ipcRenderer.on('update-download-progress', (_, pct) => cb(pct))
-  }
+  },
+
+  // Plugin System API
+  getInstalledPlugins: () => ipcRenderer.invoke('get-installed-plugins'),
+  getActivePlugin: () => ipcRenderer.invoke('get-active-plugin'),
+  setActivePlugin: (id: string | null) => ipcRenderer.invoke('set-active-plugin', id),
+  installPluginFromManifest: (manifest: unknown) =>
+    ipcRenderer.invoke('install-plugin-from-manifest', manifest),
+  uninstallPlugin: (id: string) => ipcRenderer.invoke('uninstall-plugin', id),
+  getPluginPrompts: (id: string) => ipcRenderer.invoke('get-plugin-prompts', id),
+  fetchPluginRegistry: () => ipcRenderer.invoke('fetch-plugin-registry')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

@@ -11,9 +11,11 @@ import {
   Film,
   Crop,
   Mic,
-  AudioLines
+  AudioLines,
+  Package
 } from 'lucide-react'
 import UpdateBanner from './UpdateBanner'
+import { usePlugin } from '../contexts/PluginContext'
 
 interface SidebarProps {
   activeAI: 'chatgpt' | 'gemini' | 'perplexity'
@@ -26,6 +28,7 @@ interface SidebarProps {
   isAudioRecording: boolean
   onToggleAudioRecording: () => void
   onOpenTrimmer: () => void
+  onPluginBrowserClick: () => void
 }
 
 /**
@@ -43,8 +46,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   onToggleRegionBox,
   isAudioRecording,
   onToggleAudioRecording,
-  onOpenTrimmer
+  onOpenTrimmer,
+  onPluginBrowserClick
 }) => {
+  const { activePlugin } = usePlugin()
   // Delete all full screenshots from the portable data folder
   const handleClearScreenshots = (): void => {
     if (
@@ -64,10 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   }
 
   return (
-    <div
-      className="sidebar"
-      onMouseEnter={() => window.api.setIgnoreMouseEvents(false)}
-    >
+    <div className="sidebar" onMouseEnter={() => window.api.setIgnoreMouseEvents(false)}>
       <div className="sidebar-top">
         {/* Branding */}
         <div className="sidebar-brand">
@@ -183,6 +185,20 @@ const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
       <div className="sidebar-bottom">
+        <div className="sidebar-plugin-indicator">
+          <button
+            className={`sidebar-plugin-btn ${activePlugin ? 'active' : ''}`}
+            onClick={onPluginBrowserClick}
+            title={activePlugin ? `Plugin: ${activePlugin.name}` : 'No plugin active – browse plugins'}
+          >
+            <span className="sidebar-plugin-icon">
+              {activePlugin?.icon ?? <Package size={15} />}
+            </span>
+            <span className="sidebar-plugin-label">
+              {activePlugin ? activePlugin.name : 'No Plugin'}
+            </span>
+          </button>
+        </div>
         <button className="sidebar-item" onClick={onSettingsClick} title="Settings">
           <SettingsIcon size={18} />
           <span className="item-label">Settings</span>

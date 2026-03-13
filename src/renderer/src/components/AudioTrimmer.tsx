@@ -121,57 +121,63 @@ const AudioTrimmer: React.FC = () => {
   }, [])
 
   /** Select a file for trimming — loads audio via IPC as blob URL */
-  const handleSelectFile = useCallback(async (file: AudioFileInfo): Promise<void> => {
-    setSelectedFile(file)
-    setTrimStart(0)
-    setCurrentTime(0)
-    setIsPlaying(false)
-    waveformDataRef.current = null
+  const handleSelectFile = useCallback(
+    async (file: AudioFileInfo): Promise<void> => {
+      setSelectedFile(file)
+      setTrimStart(0)
+      setCurrentTime(0)
+      setIsPlaying(false)
+      waveformDataRef.current = null
 
-    // Revoke previous blob URL
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current)
-      blobUrlRef.current = null
-    }
-
-    try {
-      // Get duration from main process (FFmpeg)
-      const dur = await window.api.getAudioDuration(file.path)
-      setDuration(dur)
-      setTrimEnd(dur)
-
-      // Load file bytes via IPC and create blob URL
-      const buffer = await window.api.readAudioFile(file.path)
-      if (buffer) {
-        const uint8 = new Uint8Array(buffer)
-        const blob = new Blob([uint8], { type: 'audio/mpeg' })
-        const url = URL.createObjectURL(blob)
-        blobUrlRef.current = url
-
-        // Set audio element src
-        if (audioRef.current) {
-          audioRef.current.src = url
-          audioRef.current.load()
-        }
-
-        // Decode audio data for waveform
-        try {
-          const audioCtx = new AudioContext()
-          const arrayBuf = uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength)
-          const decoded = await audioCtx.decodeAudioData(arrayBuf)
-          waveformDataRef.current = decoded.getChannelData(0)
-          audioCtx.close()
-          // Draw after a tick so the canvas has mounted
-          requestAnimationFrame(drawWaveform)
-        } catch (decodeErr) {
-          console.warn('Waveform decode failed:', decodeErr)
-        }
+      // Revoke previous blob URL
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current)
+        blobUrlRef.current = null
       }
-    } catch {
-      setDuration(0)
-      setTrimEnd(0)
-    }
-  }, [drawWaveform])
+
+      try {
+        // Get duration from main process (FFmpeg)
+        const dur = await window.api.getAudioDuration(file.path)
+        setDuration(dur)
+        setTrimEnd(dur)
+
+        // Load file bytes via IPC and create blob URL
+        const buffer = await window.api.readAudioFile(file.path)
+        if (buffer) {
+          const uint8 = new Uint8Array(buffer)
+          const blob = new Blob([uint8], { type: 'audio/mpeg' })
+          const url = URL.createObjectURL(blob)
+          blobUrlRef.current = url
+
+          // Set audio element src
+          if (audioRef.current) {
+            audioRef.current.src = url
+            audioRef.current.load()
+          }
+
+          // Decode audio data for waveform
+          try {
+            const audioCtx = new AudioContext()
+            const arrayBuf = uint8.buffer.slice(
+              uint8.byteOffset,
+              uint8.byteOffset + uint8.byteLength
+            )
+            const decoded = await audioCtx.decodeAudioData(arrayBuf)
+            waveformDataRef.current = decoded.getChannelData(0)
+            audioCtx.close()
+            // Draw after a tick so the canvas has mounted
+            requestAnimationFrame(drawWaveform)
+          } catch (decodeErr) {
+            console.warn('Waveform decode failed:', decodeErr)
+          }
+        }
+      } catch {
+        setDuration(0)
+        setTrimEnd(0)
+      }
+    },
+    [drawWaveform]
+  )
 
   /** Delete a file with confirmation */
   const handleDelete = useCallback(
@@ -429,10 +435,7 @@ const AudioTrimmer: React.FC = () => {
           {/* Timeline */}
           <div className="trim-timeline" ref={timelineRef} onClick={handleTimelineClick}>
             {/* Waveform canvas */}
-            <canvas
-              ref={waveformCanvasRef}
-              className="trim-waveform-canvas"
-            />
+            <canvas ref={waveformCanvasRef} className="trim-waveform-canvas" />
 
             {/* Selection region */}
             <div

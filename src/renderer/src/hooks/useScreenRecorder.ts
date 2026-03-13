@@ -592,14 +592,7 @@ export function useScreenRecorder(options: UseScreenRecorderOptions) {
         releaseStream()
       }
     },
-    [
-      acquireStream,
-      buildStream,
-      releaseStream,
-      clearTimer,
-      saveChunks,
-      onError
-    ]
+    [acquireStream, buildStream, releaseStream, clearTimer, saveChunks, onError]
   )
 
   /** Stop a manual recording in progress */
@@ -649,14 +642,7 @@ export function useScreenRecorder(options: UseScreenRecorderOptions) {
         releaseStream()
       }
     },
-    [
-      acquireStream,
-      buildStream,
-      releaseStream,
-      createAndStartRecorder,
-      rotateBuffer,
-      onError
-    ]
+    [acquireStream, buildStream, releaseStream, createAndStartRecorder, rotateBuffer, onError]
   )
 
   /** Stop the background buffer and discard all chunks */

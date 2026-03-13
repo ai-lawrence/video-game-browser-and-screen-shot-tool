@@ -266,9 +266,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
               <label>Background Buffering</label>
               <button
                 className={`settings-toggle ${settings.bufferingEnabled ? 'active' : ''}`}
-                onClick={() =>
-                  handleSettingChange('bufferingEnabled', !settings.bufferingEnabled)
-                }
+                onClick={() => handleSettingChange('bufferingEnabled', !settings.bufferingEnabled)}
                 title={settings.bufferingEnabled ? 'Disable buffer' : 'Enable buffer'}
               >
                 <div className="toggle-knob" />

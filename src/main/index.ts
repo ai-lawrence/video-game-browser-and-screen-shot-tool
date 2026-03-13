@@ -23,6 +23,12 @@ import {
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 
+import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import type Store from 'electron-store'
+import icon from '../../resources/icon.png?asset'
+import { checkForUpdate, downloadAndApplyUpdate } from './updater'
+import { PluginManager } from './PluginManager'
+
 const execFileAsync = promisify(execFile)
 
 /**
@@ -41,9 +47,37 @@ async function getFfmpegPath(): Promise<string> {
   cachedFfmpegPath = ffmpegPath
   return ffmpegPath
 }
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
-import { checkForUpdate, downloadAndApplyUpdate } from './updater'
+
+interface SavedPrompt {
+  id: string
+  title: string
+  icon?: string
+  text: string
+  createdAt: number
+  updatedAt: number
+}
+
+interface StoreSchema {
+  screenshotHotkey: string
+  snipHotkey: string
+  toggleHotkey: string
+  clipHotkey: string
+  bufferingEnabled: boolean
+  bufferLength: number
+  systemAudioEnabled: boolean
+  micEnabled: boolean
+  selectedMicDeviceId: string
+  recordingResolution: string
+  customAspectRatio: boolean
+  aspectRatioPreset: string
+  regionBoxEnabled: boolean
+  regionBounds: Record<string, number> | null
+  audioRecordingMode: string
+  savedPrompts: SavedPrompt[]
+  savedPromptsAutoSend: boolean
+  activePluginId: string
+  [key: string]: unknown // allows dynamic pluginPrompts.<id> keys
+}
 
 // Set up portable data directory to ensure data is saved locally alongside the executable
 // This is critical for the "portable" aspect of the application.
@@ -67,6 +101,7 @@ const setupPortablePaths = (): void => {
   const snipsPath = join(screenshotsPath, 'snips')
   const recordingsPath = join(dataPath, 'recordings')
   const audioRecordingsPath = join(dataPath, 'recordings', 'audio')
+  const pluginsPath = join(dataPath, 'plugins')
 
   // Create directories if they don't exist
   if (!existsSync(dataPath)) mkdirSync(dataPath, { recursive: true })
@@ -74,6 +109,7 @@ const setupPortablePaths = (): void => {
   if (!existsSync(snipsPath)) mkdirSync(snipsPath, { recursive: true })
   if (!existsSync(recordingsPath)) mkdirSync(recordingsPath, { recursive: true })
   if (!existsSync(audioRecordingsPath)) mkdirSync(audioRecordingsPath, { recursive: true })
+  if (!existsSync(pluginsPath)) mkdirSync(pluginsPath, { recursive: true })
 
   // Redirect Electron's default 'userData' path to our portable 'data' folder
   app.setPath('userData', dataPath)
@@ -82,11 +118,16 @@ const setupPortablePaths = (): void => {
 
 setupPortablePaths()
 
-let store: any
+let store: Store<StoreSchema>
+let pluginManager: PluginManager
+
 // Initialize electron-store simply to manage user preferences (hotkeys)
 const initStore = async (): Promise<void> => {
   const { default: Store } = await import('electron-store')
   store = new Store()
+  // Initialise the plugin manager after the store is ready
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pluginManager = new PluginManager(store as unknown as any)
 }
 
 let trimmerWindow: BrowserWindow | null = null
@@ -386,15 +427,6 @@ function createWindow(): void {
     writeFileSync(filePath, imageBuffer)
   })
 
-  interface SavedPrompt {
-    id: string
-    title: string
-    icon?: string
-    text: string
-    createdAt: number
-    updatedAt: number
-  }
-
   /* SAVED PROMPTS IPC HANDLERS */
 
   // Get all saved prompts
@@ -519,10 +551,13 @@ function createWindow(): void {
       try {
         const ffmpegPath = await getFfmpegPath()
         await execFileAsync(ffmpegPath, [
-          '-i', tempPath,
+          '-i',
+          tempPath,
           '-vn',
-          '-ab', '192k',
-          '-ar', '44100',
+          '-ab',
+          '192k',
+          '-ar',
+          '44100',
           '-y',
           finalPath
         ])
@@ -595,10 +630,14 @@ function createWindow(): void {
       try {
         const ffmpegPath = await getFfmpegPath()
         await execFileAsync(ffmpegPath, [
-          '-i', filePath,
-          '-ss', String(startSec),
-          '-to', String(endSec),
-          '-c', 'copy',
+          '-i',
+          filePath,
+          '-ss',
+          String(startSec),
+          '-to',
+          String(endSec),
+          '-c',
+          'copy',
           '-y',
           trimmedPath
         ])
@@ -618,11 +657,7 @@ function createWindow(): void {
     try {
       const ffmpegPath = await getFfmpegPath()
       // Use ffprobe-style approach via ffmpeg: read stderr for duration
-      const { stderr } = await execFileAsync(ffmpegPath, [
-        '-i', filePath,
-        '-f', 'null',
-        '-'
-      ])
+      const { stderr } = await execFileAsync(ffmpegPath, ['-i', filePath, '-f', 'null', '-'])
       // Parse duration from FFmpeg output: "Duration: HH:MM:SS.ms"
       const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.?\d*)/)
       if (match) {
@@ -678,6 +713,61 @@ function createWindow(): void {
   // Download and apply the update (starts download, writes bat script, quits app)
   ipcMain.handle('download-update', async (_, downloadUrl: string) => {
     await downloadAndApplyUpdate(downloadUrl, mainWindow)
+  })
+
+  /* PLUGIN SYSTEM IPC HANDLERS */
+
+  // List all installed plugins
+  ipcMain.handle('get-installed-plugins', () => {
+    return pluginManager.getInstalledPlugins()
+  })
+
+  // Get the currently active plugin ID
+  ipcMain.handle('get-active-plugin', () => {
+    return pluginManager.getActivePlugin()
+  })
+
+  // Set the active plugin (null to deactivate)
+  ipcMain.handle('set-active-plugin', (_, id: string | null) => {
+    pluginManager.setActivePlugin(id)
+    return true
+  })
+
+  // Install a plugin from a zip buffer sent from renderer
+  ipcMain.handle('install-plugin', async (_, zipBuffer: Uint8Array, id: string) => {
+    await pluginManager.installPlugin(Buffer.from(zipBuffer), id)
+    return true
+  })
+
+  // Install a plugin directly from a manifest object (used for bundled plugins)
+  ipcMain.handle('install-plugin-from-manifest', (_, manifest) => {
+    pluginManager.installPluginFromManifest(manifest)
+    return true
+  })
+
+  // Uninstall a plugin by its ID
+  ipcMain.handle('uninstall-plugin', (_, id: string) => {
+    pluginManager.uninstallPlugin(id)
+    return true
+  })
+
+  // Get prompts for a specific plugin (built-in + user-added)
+  ipcMain.handle('get-plugin-prompts', (_, id: string) => {
+    return pluginManager.getPluginPrompts(id)
+  })
+
+  // Fetch the remote plugin registry from GitHub
+  ipcMain.handle('fetch-plugin-registry', async () => {
+    const REGISTRY_URL =
+      'https://raw.githubusercontent.com/ai-lawrence/overlay-plugins/main/plugins.json'
+    try {
+      const response = await fetch(REGISTRY_URL)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      return await response.json()
+    } catch (err) {
+      console.error('[PluginManager] Failed to fetch registry:', err)
+      return []
+    }
   })
 }
 

@@ -90,6 +90,51 @@ interface CustomAPI {
   downloadUpdate: (downloadUrl: string) => Promise<void>
   onUpdateAvailable: (cb: (info: UpdateInfo) => void) => void
   onUpdateProgress: (cb: (percent: number) => void) => void
+
+  // Plugin System API
+  getInstalledPlugins: () => Promise<PluginManifest[]>
+  getActivePlugin: () => Promise<string | null>
+  setActivePlugin: (id: string | null) => Promise<boolean>
+  installPluginFromManifest: (manifest: PluginManifest) => Promise<boolean>
+  uninstallPlugin: (id: string) => Promise<boolean>
+  getPluginPrompts: (id: string) => Promise<PluginPrompt[]>
+  fetchPluginRegistry: () => Promise<RegistryPlugin[]>
+}
+
+interface PluginPrompt {
+  id: string
+  title: string
+  icon?: string
+  text: string
+}
+
+interface PluginManifest {
+  id: string
+  name: string
+  version: string
+  description: string
+  author: string
+  icon?: string
+  game?: string
+  tags?: string[]
+  prompts?: PluginPrompt[]
+  theme?: {
+    primary?: string
+    surface?: string
+    accent?: string
+  }
+}
+
+interface RegistryPlugin {
+  id: string
+  name: string
+  version: string
+  description: string
+  author: string
+  icon?: string
+  game?: string
+  tags?: string[]
+  downloadUrl: string
 }
 
 export interface SavedPrompt {

@@ -166,7 +166,9 @@
   border-radius: 16px;
   width: 400px;
   padding: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 20px var(--primary-faint);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 20px var(--primary-faint);
   color: var(--text-primary);
 }
 

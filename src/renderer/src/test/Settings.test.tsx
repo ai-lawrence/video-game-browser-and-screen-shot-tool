@@ -38,16 +38,15 @@ describe('Settings', () => {
     })
   })
 
-
   it('loads settings on mount', async () => {
-    render(<Settings onClose={() => { }} />)
+    render(<Settings onClose={() => {}} />)
     await waitFor(() => expect(mockApi.getSettings).toHaveBeenCalled())
     expect(screen.getByText('Alt+S')).toBeInTheDocument()
     expect(screen.getByText('Alt+Shift+S')).toBeInTheDocument()
   })
 
   it('shows error on hotkey conflict', async () => {
-    render(<Settings onClose={() => { }} />)
+    render(<Settings onClose={() => {}} />)
     await waitFor(() => expect(mockApi.getSettings).toHaveBeenCalled())
 
     // Click to record new snip hotkey
@@ -65,7 +64,7 @@ describe('Settings', () => {
   })
 
   it('saves settings when hotkey is changed successfully', async () => {
-    render(<Settings onClose={() => { }} />)
+    render(<Settings onClose={() => {}} />)
     await waitFor(() => expect(mockApi.getSettings).toHaveBeenCalled())
 
     const snipHotkeyInput = screen.getByText('Alt+Shift+S')

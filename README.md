@@ -22,7 +22,25 @@ A specialized desktop application designed to provide a persistent, non-intrusiv
 
 ---
 
-### 🎨 Redesigned UI *(Updated in v1.3.0)*
+### 🧩 Game Plugin Browser _(New in v1.3.3)_
+
+A full plugin system for managing **game-specific prompt packs and themes** — install community plugins without ever leaving the overlay.
+
+- **Plugin Browser** — Open from the sidebar **"No Plugin"** button (package icon at the bottom)
+  - **Installed** tab — view, activate/deactivate, and uninstall your installed plugins
+  - **Browse** tab — pulls from a live GitHub plugin registry; install with a single click
+- **Plugin Manifest format** — each plugin ships a lightweight JSON manifest containing:
+  - `id`, `name`, `version`, `author`, `description`
+  - `game` label and `tags[]` for filtering
+  - `prompts[]` — pre-built prompt packs injected into the Saved Prompts system
+  - `theme` — optional CSS color overrides (e.g. accent, primary) applied globally
+- **Active plugin indicator** — the sidebar button updates to show the active plugin name
+- **Lazy-loaded bundle** — the Plugin Browser JS and CSS are code-split into separate chunks (~10 kB + 7.5 kB) and only loaded when first opened, keeping the initial load lean
+- **Theming support** — plugins can override `--plugin-primary` CSS variable, tinting UI elements to match the game's aesthetic
+
+---
+
+### 🎨 Redesigned UI _(Updated in v1.3.0)_
 
 The overlay received a full visual overhaul with a **cyber/teal dark aesthetic**:
 
@@ -38,19 +56,19 @@ The overlay received a full visual overhaul with a **cyber/teal dark aesthetic**
 
 ---
 
-### 🎬 Screen Recording & Instant Replay *(New in v1.2.0)*
+### 🎬 Screen Recording & Instant Replay _(New in v1.2.0)_
 
 - **Instant Replay Buffer**: Continuously records in the background (configurable: 30s, 1 min, or 2 min) using auto-rotating sessions. Press the **Save Clip** hotkey (default: `Alt+C`) at any time to save the last buffer cycle as an MP4.
 - **Manual Recording**: Start/stop a manual recording session (up to **30 minutes**) via the sidebar record button.
 - **Recorder Status Overlay**: A live HUD shows recording status, elapsed time, buffer fill, and active audio sources.
 
-### 🎧 Audio *(Updated in v1.3.0)*
+### 🎧 Audio _(Updated in v1.3.0)_
 
 - **System Audio**: Capture desktop/game audio alongside your video recordings.
 - **Microphone Input**: Record your voice with selectable mic device and a refresh button to re-enumerate devices.
 - Audio sources are mixed into video clips automatically.
 
-### 🎙️ Standalone Audio Recording *(New in v1.3.0)*
+### 🎙️ Standalone Audio Recording _(New in v1.3.0)_
 
 - **Audio-Only Recording**: Record audio independently from video via the **Mic** button in the sidebar.
 - **Three Recording Modes** (configurable in Settings):
@@ -61,7 +79,7 @@ The overlay received a full visual overhaul with a **cyber/teal dark aesthetic**
 - **30-minute** auto-stop safety cap.
 - Live recording indicator with elapsed timer.
 
-### ✂️ In-App MP3 Trimmer *(New in v1.3.0)*
+### ✂️ In-App MP3 Trimmer _(New in v1.3.0)_
 
 - **Separate Trimmer Window**: Open from the sidebar (AudioLines icon) to trim your audio recordings.
 - **Visual Timeline Editor**: Drag start/end handles on a waveform-style timeline to select exactly the portion you want.
@@ -70,7 +88,7 @@ The overlay received a full visual overhaul with a **cyber/teal dark aesthetic**
 - **Trim & Save**: Saves the trimmed portion as a new MP3 file (uses FFmpeg copy mode for lossless speed).
 - **File Management**: Browse, delete, and open the audio recordings folder.
 
-### 📐 Custom Recording Region *(New in v1.2.0)*
+### 📐 Custom Recording Region _(New in v1.2.0)_
 
 - **Crop Button** (sidebar): Toggles **visibility** of the region selection box for positioning and resizing — does not affect recording mode.
 - **Lock Aspect Ratio** (region box toolbar): When **ON**, all recordings (instant replay clips and manual recordings) capture **only the content inside the region box**. When **OFF**, recordings are full-screen.
@@ -78,20 +96,21 @@ The overlay received a full visual overhaul with a **cyber/teal dark aesthetic**
 - **Draggable Selection Box**: Drag to reposition and resize the box to frame exactly what you want to record. Bounds are saved automatically.
 - The region box can be **hidden** while Lock Aspect Ratio stays ON — recording will still capture only the region.
 
-### 📊 Resolution Presets *(New in v1.2.0)*
+### 📊 Resolution Presets _(New in v1.2.0)_
 
 Choose your recording resolution:
+
 - **720p** (HD)
 - **1080p** (Full HD) — default
 - **1440p** (2K)
 
-### 🎞️ Seekable MP4 Output *(New in v1.2.0)*
+### 🎞️ Seekable MP4 Output _(New in v1.2.0)_
 
 - Clips are saved as **MP4 (H.264)** for universal playback.
 - Automatically post-processed with **FFmpeg `faststart`** to relocate the `moov` atom for **instant seekability** — no more broken seek bars.
 - FFmpeg is **bundled** with the application — no external install required.
 
-### 💾 Recordings Management *(New in v1.2.0)*
+### 💾 Recordings Management _(New in v1.2.0)_
 
 - Video clips are saved to the portable `data/recordings/` directory.
 - Audio recordings are saved to `data/recordings/audio/`.
@@ -102,7 +121,7 @@ Choose your recording resolution:
 
 ## 🐛 Bug Fixes
 
-### Sidebar Clickthrough Fix *(v1.3.0)*
+### Sidebar Clickthrough Fix _(v1.3.0)_
 
 The sidebar previously had `-webkit-app-region: drag` applied as a CSS property — an Electron property that tells the OS to treat the area as a window title bar drag zone. A side effect is that the OS **consumes all mouse events** in drag regions at the system level, bypassing JavaScript entirely. This caused clicks to pass through the sidebar background to the game/desktop behind the overlay.
 
@@ -179,6 +198,11 @@ You can download the latest portable executable directly from the [GitHub Releas
     - Click the **Mic** button in the sidebar to start/stop audio-only recording.
     - Configure recording mode (System / System+Mic / Mic Only) in Settings.
     - Click the **AudioLines** button to open the **MP3 Trimmer** window.
+8.  **Game Plugins** _(New in v1.3.3)_:
+    - Click the **package icon / "No Plugin"** button at the bottom of the sidebar.
+    - **Installed** tab: activate, deactivate, or uninstall plugins.
+    - **Browse** tab: explore and install community plugins from the registry.
+    - The active plugin name is shown in the sidebar — its theme colors apply globally.
 
 ## ⚙️ Configuration
 
@@ -192,7 +216,7 @@ Settings are accessible via the gear icon in the sidebar:
 ## 🏗️ Tech Stack
 
 - **Electron**: Cross-platform desktop framework.
-- **React**: UI library.
+- **React**: UI library with lazy-loaded code splitting.
 - **TypeScript**: Type-safe development.
 - **Vite**: Fast build tool and dev server (multi-page support for trimmer window).
 - **Electron Store**: Local configuration persistence.

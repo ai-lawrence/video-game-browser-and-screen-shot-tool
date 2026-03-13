@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import Sidebar from './components/Sidebar'
 import Settings from './components/Settings'
 import SnippingTool from './components/SnippingTool'
@@ -12,6 +12,9 @@ import { useAudioRecorder } from './hooks/useAudioRecorder'
 import type { AudioRecordingMode } from './hooks/useAudioRecorder'
 import { getProviderForUrl } from './providers'
 import { SavedPrompt } from './providers/types'
+import { PluginProvider } from './contexts/PluginContext'
+
+const PluginBrowser = lazy(() => import('./components/PluginBrowser/PluginBrowser'))
 
 // ... existing code ...
 
@@ -28,6 +31,9 @@ function App(): React.JSX.Element {
   // Toast state
   const [toastMsg, setToastMsg] = useState('')
   const [showToast, setShowToast] = useState(false)
+
+  // Plugin browser
+  const [isPluginBrowserOpen, setIsPluginBrowserOpen] = useState(false)
 
   // Recording settings state
   const [bufferingEnabled, setBufferingEnabled] = useState(false)
@@ -412,7 +418,7 @@ function App(): React.JSX.Element {
       setTimeout(() => {
         try {
           if (activeRef.current) {
-            ; (activeRef.current as any).paste()
+            ;(activeRef.current as any).paste()
             setScreenshot(null)
             screenshotRef.current = null
           }
@@ -499,6 +505,7 @@ function App(): React.JSX.Element {
           isAudioRecording={audioRecorder.isRecording}
           onToggleAudioRecording={handleToggleAudioRecording}
           onOpenTrimmer={handleOpenTrimmer}
+          onPluginBrowserClick={() => setIsPluginBrowserOpen(true)}
         />
 
         <main
@@ -531,8 +538,7 @@ function App(): React.JSX.Element {
           {audioRecorder.isRecording && (
             <div className="audio-recording-indicator">
               <span className="audio-rec-dot" />
-              Audio Recording ·{' '}
-              {String(Math.floor(audioRecorder.elapsed / 60)).padStart(2, '0')}:
+              Audio Recording · {String(Math.floor(audioRecorder.elapsed / 60)).padStart(2, '0')}:
               {String(audioRecorder.elapsed % 60).padStart(2, '0')}
             </div>
           )}
@@ -625,6 +631,13 @@ function App(): React.JSX.Element {
 
       <Toast message={toastMsg} isVisible={showToast} onClose={() => setShowToast(false)} />
 
+      {/* Plugin Browser modal (lazy-loaded) */}
+      {isPluginBrowserOpen && (
+        <Suspense fallback={null}>
+          <PluginBrowser onClose={() => setIsPluginBrowserOpen(false)} />
+        </Suspense>
+      )}
+
       {/* Region selector overlay — controlled by sidebar toggle, hidden during recording */}
       {regionBoxVisible && recorder.status !== 'recording' && (
         <RegionSelector
@@ -644,4 +657,12 @@ function App(): React.JSX.Element {
   )
 }
 
-export default App
+function AppWithProviders(): React.JSX.Element {
+  return (
+    <PluginProvider>
+      <App />
+    </PluginProvider>
+  )
+}
+
+export default AppWithProviders

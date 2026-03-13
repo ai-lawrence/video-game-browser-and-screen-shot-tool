@@ -31,11 +31,7 @@ export interface UpdateInfo {
  * Returns true if `remote` is strictly newer than `local`.
  */
 function isNewerVersion(local: string, remote: string): boolean {
-  const parse = (v: string): number[] =>
-    v
-      .replace(/^v/i, '')
-      .split('.')
-      .map(Number)
+  const parse = (v: string): number[] => v.replace(/^v/i, '').split('.').map(Number)
   const [lMaj, lMin, lPat] = parse(local)
   const [rMaj, rMin, rPat] = parse(remote)
   if (rMaj !== lMaj) return rMaj > lMaj
@@ -57,12 +53,7 @@ function httpsGetFollowRedirects(
       headers: { 'User-Agent': `${GITHUB_REPO}-updater`, ...headers }
     }
     const request = httpsGet(url, opts, (res) => {
-      if (
-        res.statusCode &&
-        res.statusCode >= 300 &&
-        res.statusCode < 400 &&
-        res.headers.location
-      ) {
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         if (maxRedirects <= 0) return reject(new Error('Too many redirects'))
         return resolve(httpsGetFollowRedirects(res.headers.location, headers, maxRedirects - 1))
       }
@@ -106,8 +97,7 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
           }
 
           // Find the portable exe asset
-          const assets: Array<{ name: string; browser_download_url: string }> =
-            release.assets || []
+          const assets: Array<{ name: string; browser_download_url: string }> = release.assets || []
           const exeAsset = assets.find((a) => ASSET_PATTERN.test(a.name))
           if (!exeAsset) {
             console.warn('Update available but no matching portable exe asset found')

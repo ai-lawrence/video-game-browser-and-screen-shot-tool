@@ -67,7 +67,11 @@ const UpdateBanner: React.FC = () => {
         </div>
       ) : (
         <div className="update-actions">
-          <button className="update-download-btn" onClick={handleDownload} title="Download & Update">
+          <button
+            className="update-download-btn"
+            onClick={handleDownload}
+            title="Download & Update"
+          >
             <Download size={14} />
           </button>
           <button className="update-dismiss-btn" onClick={() => setDismissed(true)} title="Dismiss">
