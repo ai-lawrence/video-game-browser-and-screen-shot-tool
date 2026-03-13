@@ -1,6 +1,6 @@
 import './pluginBrowser.css'
-import React, { useState, useEffect, useRef } from 'react'
-import { Package, RefreshCw, Check, Trash2, X } from 'lucide-react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { Package, RefreshCw, Check, Trash2, X, Loader2 } from 'lucide-react'
 import { usePlugin } from '../../contexts/PluginContext'
 import type { RegistryPlugin, PluginManifest } from '../../contexts/PluginContext'
 import PluginCard from './PluginCard'
@@ -37,35 +37,69 @@ export default function PluginBrowser({ onClose }: PluginBrowserProps): React.JS
     }
   }, [tab, refreshRegistry])
 
+  // Loading / confirmation state
+  const [installingId, setInstallingId] = useState<string | null>(null)
+  const [uninstallingId, setUninstallingId] = useState<string | null>(null)
+  const [confirmUninstallId, setConfirmUninstallId] = useState<string | null>(null)
+
+  // Dismiss the confirm prompt when clicking anywhere outside the danger button
+  const dismissConfirm = useCallback(() => setConfirmUninstallId(null), [])
+  useEffect(() => {
+    if (!confirmUninstallId) return
+    const handler = (): void => dismissConfirm()
+    // Use a short timeout so the click that SET the confirmId doesn't also dismiss it
+    const id = setTimeout(() => document.addEventListener('click', handler), 0)
+    return () => {
+      clearTimeout(id)
+      document.removeEventListener('click', handler)
+    }
+  }, [confirmUninstallId, dismissConfirm])
+
   const handleSetActive = async (id: string | null): Promise<void> => {
     await setActive(id)
   }
 
   const handleInstall = async (plugin: RegistryPlugin): Promise<void> => {
-    // For registry plugins from GitHub, download the zip and install it
-    // For MVP, install a minimal manifest from registry metadata
-    const manifest: PluginManifest = {
-      id: plugin.id,
-      name: plugin.name,
-      version: plugin.version,
-      description: plugin.description,
-      author: plugin.author,
-      icon: plugin.icon,
-      game: plugin.game,
-      tags: plugin.tags,
-      prompts: []
+    setInstallingId(plugin.id)
+    try {
+      // For registry plugins from GitHub, download the zip and install it
+      // For MVP, install a minimal manifest from registry metadata
+      const manifest: PluginManifest = {
+        id: plugin.id,
+        name: plugin.name,
+        version: plugin.version,
+        description: plugin.description,
+        author: plugin.author,
+        icon: plugin.icon,
+        game: plugin.game,
+        tags: plugin.tags,
+        prompts: []
+      }
+      await installFromManifest(manifest)
+    } finally {
+      setInstallingId(null)
     }
-    await installFromManifest(manifest)
+  }
+
+  /** Two-click uninstall: first click shows "Confirm?", second click executes. */
+  const handleUninstallClick = (id: string): void => {
+    if (confirmUninstallId === id) {
+      // Second click — confirmed, do the uninstall
+      handleUninstall(id)
+    } else {
+      // First click — show confirmation state
+      setConfirmUninstallId(id)
+    }
   }
 
   const handleUninstall = async (id: string): Promise<void> => {
-    if (
-      window.confirm(
-        `Are you sure you want to uninstall this plugin? This will remove all of its saved data.`
-      )
-    ) {
+    setUninstallingId(id)
+    try {
       if (activePluginId === id) await setActive(null)
       await uninstall(id)
+    } finally {
+      setUninstallingId(null)
+      setConfirmUninstallId(null)
     }
   }
 
@@ -159,11 +193,27 @@ export default function PluginBrowser({ onClose }: PluginBrowserProps): React.JS
                             )}
                           </button>
                           <button
-                            className="pb-action-btn danger"
-                            onClick={() => handleUninstall(plugin.id)}
-                            title="Uninstall plugin"
+                            className={`pb-action-btn danger ${confirmUninstallId === plugin.id ? 'confirm-danger' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleUninstallClick(plugin.id)
+                            }}
+                            disabled={uninstallingId === plugin.id}
+                            title={
+                              confirmUninstallId === plugin.id
+                                ? 'Click again to confirm'
+                                : 'Uninstall plugin'
+                            }
                           >
-                            <Trash2 size={12} />
+                            {uninstallingId === plugin.id ? (
+                              <>
+                                <Loader2 size={12} className="spinning" /> Removing…
+                              </>
+                            ) : confirmUninstallId === plugin.id ? (
+                              'Confirm?'
+                            ) : (
+                              <Trash2 size={12} />
+                            )}
                           </button>
                         </>
                       }
@@ -203,8 +253,15 @@ export default function PluginBrowser({ onClose }: PluginBrowserProps): React.JS
                           <button
                             className="pb-action-btn primary"
                             onClick={() => handleInstall(plugin)}
+                            disabled={installingId === plugin.id}
                           >
-                            Install
+                            {installingId === plugin.id ? (
+                              <>
+                                <Loader2 size={12} className="spinning" /> Installing…
+                              </>
+                            ) : (
+                              'Install'
+                            )}
                           </button>
                         )
                       }

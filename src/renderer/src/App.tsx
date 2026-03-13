@@ -162,6 +162,7 @@ function App(): React.JSX.Element {
       bufferAutoStartedRef.current = false
       recorder.stopBuffering()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recorder methods are stable refs; including recorder causes infinite loops
   }, [
     bufferingEnabled,
     recorder.status,
@@ -182,6 +183,7 @@ function App(): React.JSX.Element {
     if (recorder.status === 'buffering') {
       recorder.restartBuffering()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recorder methods are stable refs
   }, [customAspectRatio, recorder.status, recorder.restartBuffering])
 
   // Also restart buffering when bounds transition from null → valid while
@@ -197,6 +199,7 @@ function App(): React.JSX.Element {
     if (!hadBounds && hasBounds && customAspectRatio && recorder.status === 'buffering') {
       recorder.restartBuffering()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recorder methods are stable refs
   }, [regionBounds, customAspectRatio, recorder.status, recorder.restartBuffering])
 
   // Keep a ref to the latest saveClip so the IPC listener never goes stale
@@ -363,6 +366,18 @@ function App(): React.JSX.Element {
         if (isInsideRegion) return
       }
 
+      // Keep mouse events enabled when hovering the Plugin Browser overlay
+      const pluginOverlay = document.querySelector('.plugin-browser-overlay')
+      if (pluginOverlay) {
+        const rect = pluginOverlay.getBoundingClientRect()
+        const isInsidePlugin =
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        if (isInsidePlugin) return
+      }
+
       // Mouse is over transparent empty space — re-enable click-through
       window.api.setIgnoreMouseEvents(true, { forward: true })
     }
@@ -413,12 +428,12 @@ function App(): React.JSX.Element {
             ? `(function(){ try { const el = document.querySelector('div[contenteditable="true"]') || document.querySelector('textarea'); if(el){el.focus();return true;} return false; } catch(e){return false;} })()`
             : `(function(){ try { const el = document.querySelector('textarea'); if(el){el.focus();return true;} return false; } catch(e){return false;} })()`
 
-      await (activeRef.current as any).executeJavaScript(focusScript)
+      await (activeRef.current as unknown as Electron.WebviewTag).executeJavaScript(focusScript)
 
       setTimeout(() => {
         try {
           if (activeRef.current) {
-            ;(activeRef.current as any).paste()
+            ;(activeRef.current as unknown as Electron.WebviewTag).paste()
             setScreenshot(null)
             screenshotRef.current = null
           }
@@ -442,7 +457,7 @@ function App(): React.JSX.Element {
   }
 
   // Inject Prompt Logic
-  const handleInjectPrompt = async (prompt: SavedPrompt, autoSend: boolean) => {
+  const handleInjectPrompt = async (prompt: SavedPrompt, autoSend: boolean): Promise<void> => {
     const activeRef =
       activeAI === 'chatgpt' ? chatgptRef : activeAI === 'gemini' ? geminiRef : perplexityRef
     if (!activeRef.current) return
@@ -455,7 +470,7 @@ function App(): React.JSX.Element {
     const provider = getProviderForUrl(url)
 
     // Helper to fallback
-    const fallback = async (msg: string) => {
+    const fallback = async (msg: string): Promise<void> => {
       await window.api.writeToClipboard(prompt.text)
       setToastMsg(`From ${prompt.title}: ${msg}. Copied to clipboard.`)
       setShowToast(true)
@@ -467,11 +482,15 @@ function App(): React.JSX.Element {
     }
 
     try {
-      const result = await provider.inject(activeRef.current as any, prompt.text, autoSend)
+      const result = await provider.inject(
+        activeRef.current as unknown as Electron.WebviewTag,
+        prompt.text,
+        autoSend
+      )
       if (!result.ok) {
         await fallback(result.error || 'Injection failed')
       }
-    } catch (err) {
+    } catch {
       await fallback('Error during injection')
     }
   }

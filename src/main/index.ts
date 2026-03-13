@@ -118,6 +118,12 @@ const setupPortablePaths = (): void => {
 
 setupPortablePaths()
 
+// Prevent the Chromium Network-Service crash that freezes the transparent
+// overlay.  The disk_cache errors come from OneDrive (or antivirus) locking
+// cache files; disabling the disk cache entirely avoids the crash.
+app.commandLine.appendSwitch('disable-http-cache')
+app.commandLine.appendSwitch('disk-cache-size', '0')
+
 let store: Store<StoreSchema>
 let pluginManager: PluginManager
 
@@ -234,6 +240,21 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // Auto-recover if the renderer crashes (Network Service / GPU cascade)
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error(`[Overlay] Renderer crashed (${details.reason}). Reloading…`)
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.reload()
+    }
+  })
+
+  mainWindow.webContents.on('unresponsive', () => {
+    console.warn('[Overlay] Renderer became unresponsive. Reloading…')
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.reload()
+    }
+  })
 
   // Logic to register global shortcuts based on user settings
   const registerShortcuts = (): void => {
@@ -761,7 +782,11 @@ function createWindow(): void {
     const REGISTRY_URL =
       'https://raw.githubusercontent.com/ai-lawrence/overlay-plugins/main/plugins.json'
     try {
-      const response = await fetch(REGISTRY_URL)
+      // Abort after 10 seconds to prevent the UI from freezing on unreachable URLs
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10_000)
+      const response = await fetch(REGISTRY_URL, { signal: controller.signal })
+      clearTimeout(timeoutId)
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       return await response.json()
     } catch (err) {
