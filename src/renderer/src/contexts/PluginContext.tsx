@@ -7,6 +7,14 @@ export interface PluginPrompt {
   text: string
 }
 
+export interface PluginSidebarButton {
+  id: string
+  label: string
+  icon?: string
+  action: 'open-url' | 'inject-prompt' | 'toggle-panel'
+  payload?: string
+}
+
 export interface PluginManifest {
   id: string
   name: string
@@ -17,6 +25,7 @@ export interface PluginManifest {
   game?: string
   tags?: string[]
   prompts?: PluginPrompt[]
+  sidebarButtons?: PluginSidebarButton[]
   theme?: {
     primary?: string
     surface?: string
@@ -41,6 +50,7 @@ interface PluginContextValue {
   activePlugin: PluginManifest | null
   activePluginId: string | null
   activePrompts: PluginPrompt[]
+  activePluginButtons: PluginSidebarButton[]
   registryPlugins: RegistryPlugin[]
   registryLoading: boolean
   setActive: (id: string | null) => Promise<void>
@@ -78,6 +88,7 @@ export function PluginProvider({ children }: { children: React.ReactNode }): Rea
 
   // Apply theme CSS variables when active plugin changes
   const activePlugin = installed.find((p) => p.id === activePluginId) ?? null
+  const activePluginButtons = activePlugin?.sidebarButtons ?? []
   useEffect(() => {
     const root = document.documentElement
     if (activePlugin?.theme) {
@@ -143,6 +154,7 @@ export function PluginProvider({ children }: { children: React.ReactNode }): Rea
         activePlugin,
         activePluginId,
         activePrompts,
+        activePluginButtons,
         registryPlugins,
         registryLoading,
         setActive,

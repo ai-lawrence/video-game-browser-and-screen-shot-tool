@@ -125,6 +125,53 @@
   animation: spin 1s linear infinite;
 }
 
+/* Search bar */
+.pb-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.pb-search-icon {
+  color: #666;
+  flex-shrink: 0;
+}
+
+.pb-search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #ddd;
+  font-size: 0.82rem;
+  font-family: inherit;
+  padding: 0;
+}
+
+.pb-search-input::placeholder {
+  color: #555;
+}
+
+.pb-search-clear {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s, background 0.2s;
+}
+
+.pb-search-clear:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* Content area */
 .plugin-browser-content {
   flex: 1;

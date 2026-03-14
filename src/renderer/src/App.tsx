@@ -15,6 +15,9 @@ import { SavedPrompt } from './providers/types'
 import { PluginProvider } from './contexts/PluginContext'
 
 const PluginBrowser = lazy(() => import('./components/PluginBrowser/PluginBrowser'))
+const PluginPromptSelector = lazy(
+  () => import('./components/PluginPromptSelector/PluginPromptSelector')
+)
 
 // ... existing code ...
 
@@ -525,6 +528,18 @@ function App(): React.JSX.Element {
           onToggleAudioRecording={handleToggleAudioRecording}
           onOpenTrimmer={handleOpenTrimmer}
           onPluginBrowserClick={() => setIsPluginBrowserOpen(true)}
+          onInjectPluginPrompt={(text) => {
+            handleInjectPrompt(
+              {
+                id: 'plugin-prompt',
+                title: 'Plugin Prompt',
+                text,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+              },
+              false
+            )
+          }}
         />
 
         <main
@@ -611,7 +626,31 @@ function App(): React.JSX.Element {
           </div>
 
           {/* Saved Prompts Panel */}
-          {activeAI !== 'perplexity' && <SavedPromptsPanel onInject={handleInjectPrompt} />}
+          {activeAI !== 'perplexity' && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
+              <div style={{ flex: 1 }}>
+                <SavedPromptsPanel onInject={handleInjectPrompt} />
+              </div>
+              <Suspense fallback={null}>
+                <div style={{ padding: '6px 8px 6px 0' }}>
+                  <PluginPromptSelector
+                    onSelect={(text) => {
+                      handleInjectPrompt(
+                        {
+                          id: 'plugin-prompt',
+                          title: 'Plugin Prompt',
+                          text,
+                          createdAt: Date.now(),
+                          updatedAt: Date.now()
+                        },
+                        false
+                      )
+                    }}
+                  />
+                </div>
+              </Suspense>
+            </div>
+          )}
           {activeAI === 'perplexity' && (
             <div
               style={{

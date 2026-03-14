@@ -12,7 +12,8 @@ import {
   Crop,
   Mic,
   AudioLines,
-  Package
+  Package,
+  ExternalLink
 } from 'lucide-react'
 import UpdateBanner from './UpdateBanner'
 import { usePlugin } from '../contexts/PluginContext'
@@ -29,6 +30,7 @@ interface SidebarProps {
   onToggleAudioRecording: () => void
   onOpenTrimmer: () => void
   onPluginBrowserClick: () => void
+  onInjectPluginPrompt?: (text: string) => void
 }
 
 /**
@@ -47,9 +49,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   isAudioRecording,
   onToggleAudioRecording,
   onOpenTrimmer,
-  onPluginBrowserClick
+  onPluginBrowserClick,
+  onInjectPluginPrompt
 }) => {
-  const { activePlugin } = usePlugin()
+  const { activePlugin, activePluginButtons } = usePlugin()
   // Delete all full screenshots from the portable data folder
   const handleClearScreenshots = (): void => {
     if (
@@ -184,6 +187,39 @@ const Sidebar: React.FC<SidebarProps> = ({
           <span className="item-label">Clear Snips</span>
         </button>
       </div>
+
+      {/* Plugin Sidebar Buttons — only visible when a plugin is active */}
+      {activePluginButtons.length > 0 && (
+        <>
+          <div className="sidebar-separator" />
+          <div className="sidebar-section-label">Plugin Tools</div>
+          {activePluginButtons.map((btn) => (
+            <button
+              key={btn.id}
+              className="sidebar-item sidebar-plugin-action"
+              data-plugin-action={btn.action}
+              title={btn.label}
+              onClick={() => {
+                if (btn.action === 'open-url' && btn.payload) {
+                  window.open(btn.payload, '_blank')
+                } else if (btn.action === 'inject-prompt' && btn.payload && onInjectPluginPrompt) {
+                  onInjectPluginPrompt(btn.payload)
+                } else if (btn.action === 'toggle-panel') {
+                  console.log('Toggle panel:', btn.id)
+                }
+              }}
+            >
+              {btn.icon ? (
+                <span style={{ fontSize: 16, lineHeight: 1 }}>{btn.icon}</span>
+              ) : (
+                <ExternalLink size={18} />
+              )}
+              <span className="item-label">{btn.label}</span>
+            </button>
+          ))}
+        </>
+      )}
+
       <div className="sidebar-bottom">
         <div className="sidebar-plugin-indicator">
           <button

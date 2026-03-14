@@ -29,10 +29,9 @@ export interface PluginPrompt {
 export interface PluginSidebarButton {
   id: string
   label: string
-  icon: string // lucide icon name or emoji
+  icon?: string
   action: 'open-url' | 'inject-prompt' | 'toggle-panel'
-  url?: string
-  promptId?: string
+  payload?: string // URL for open-url, prompt text for inject-prompt
 }
 
 export interface PluginTheme {

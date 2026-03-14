@@ -1,6 +1,6 @@
 import './pluginBrowser.css'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Package, RefreshCw, Check, Trash2, X, Loader2 } from 'lucide-react'
+import { Package, RefreshCw, Check, Trash2, X, Loader2, Search } from 'lucide-react'
 import { usePlugin } from '../../contexts/PluginContext'
 import type { RegistryPlugin, PluginManifest } from '../../contexts/PluginContext'
 import PluginCard from './PluginCard'
@@ -26,6 +26,7 @@ export default function PluginBrowser({ onClose }: PluginBrowserProps): React.JS
   } = usePlugin()
 
   const [tab, setTab] = useState<'installed' | 'browse'>('installed')
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Use a ref (not state) to track whether we've triggered the registry load —
   // avoids the cascading-setState-in-effect lint warning.
@@ -105,6 +106,20 @@ export default function PluginBrowser({ onClose }: PluginBrowserProps): React.JS
 
   const installedIds = new Set(installed.map((p) => p.id))
 
+  // Filter registry plugins by search query
+  const filteredRegistry = searchQuery.trim()
+    ? registryPlugins.filter((p) => {
+        const q = searchQuery.toLowerCase()
+        return (
+          p.name.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          (p.game && p.game.toLowerCase().includes(q)) ||
+          (p.author && p.author.toLowerCase().includes(q)) ||
+          (p.tags && p.tags.some((t) => t.toLowerCase().includes(q)))
+        )
+      })
+    : registryPlugins
+
   return (
     <div
       className="plugin-browser-overlay"
@@ -145,6 +160,30 @@ export default function PluginBrowser({ onClose }: PluginBrowserProps): React.JS
             </button>
           )}
         </div>
+
+        {/* Search — visible on Browse tab */}
+        {tab === 'browse' && (
+          <div className="pb-search-bar">
+            <Search size={14} className="pb-search-icon" />
+            <input
+              className="pb-search-input"
+              type="text"
+              placeholder="Search plugins…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+            />
+            {searchQuery && (
+              <button
+                className="pb-search-clear"
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Content */}
         <div className="plugin-browser-content">
@@ -239,7 +278,7 @@ export default function PluginBrowser({ onClose }: PluginBrowserProps): React.JS
                 </div>
               ) : (
                 <div className="pb-plugin-list">
-                  {registryPlugins.map((plugin) => (
+                  {filteredRegistry.map((plugin) => (
                     <PluginCard
                       key={plugin.id}
                       plugin={plugin as PluginManifest}

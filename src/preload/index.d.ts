@@ -108,6 +108,14 @@ interface PluginPrompt {
   text: string
 }
 
+interface PluginSidebarButton {
+  id: string
+  label: string
+  icon?: string
+  action: 'open-url' | 'inject-prompt' | 'toggle-panel'
+  payload?: string
+}
+
 interface PluginManifest {
   id: string
   name: string
@@ -118,6 +126,7 @@ interface PluginManifest {
   game?: string
   tags?: string[]
   prompts?: PluginPrompt[]
+  sidebarButtons?: PluginSidebarButton[]
   theme?: {
     primary?: string
     surface?: string

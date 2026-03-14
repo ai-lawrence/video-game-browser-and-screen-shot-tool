@@ -1,0 +1,120 @@
+/* Plugin Prompt Selector Dropdown */
+
+.plugin-prompt-selector {
+  position: relative;
+  display: inline-flex;
+}
+
+.pps-trigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: rgba(124, 108, 240, 0.08);
+  border: 1px solid rgba(124, 108, 240, 0.25);
+  border-radius: 6px;
+  color: var(--plugin-primary, #7c6cf0);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.pps-trigger:hover:not(:disabled) {
+  background: rgba(124, 108, 240, 0.15);
+  border-color: var(--plugin-primary, #7c6cf0);
+}
+
+.pps-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pps-trigger.open {
+  background: rgba(124, 108, 240, 0.15);
+  border-color: var(--plugin-primary, #7c6cf0);
+}
+
+.pps-trigger-label {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pps-chevron {
+  transition: transform 0.2s;
+}
+
+.pps-chevron.flipped {
+  transform: rotate(180deg);
+}
+
+/* Dropdown panel */
+.pps-dropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  min-width: 200px;
+  max-width: 280px;
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  overflow: hidden;
+  animation: pps-slide-up 0.15s ease-out;
+}
+
+@keyframes pps-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pps-dropdown-title {
+  padding: 8px 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pps-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 0.78rem;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.pps-item:hover {
+  background: rgba(124, 108, 240, 0.1);
+  color: #e0e0ff;
+}
+
+.pps-item-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.pps-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
